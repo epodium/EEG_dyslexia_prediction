@@ -64,7 +64,11 @@ def select_bad_epochs(epochs, stimuli, threshold = 5, max_bad_fraction = 0.2):
     
     from collections import Counter
     
-    signals = epochs[str(stimuli)].get_data()
+    try: 
+        signals = epochs[str(stimuli)].get_data()
+    except KeyError:
+        signals = np.zeros((0,len(epochs.ch_names),len(epochs.times)))
+    
     max_bad_epochs = max_bad_fraction*signals.shape[0]
     
     # Find outliers in episode STD and max-min difference:
