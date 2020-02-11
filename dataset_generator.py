@@ -3,7 +3,7 @@ from tensorflow.keras.utils import Sequence
 import numpy as np
 import os
 import csv
-
+from sklearn.preprocessing import LabelBinarizer
 
 class DataGenerator(Sequence):
     """Generates data for loading (preprocessed) EEG timeseries data.
@@ -13,10 +13,11 @@ class DataGenerator(Sequence):
     def __init__(self, 
                  list_IDs,
                  main_labels,
+                 label_dict,
                  path_data,
                  filenames,
                  data_path, 
-                 to_fit=True, 
+                 to_fit=True, #TODO: implement properly for False
                  n_average = 30,
                  batch_size=32,
                  iter_per_epoch = 2,
@@ -24,7 +25,8 @@ class DataGenerator(Sequence):
                  n_timepoints = 501,
                  n_channels=30, 
                  n_classes=1, 
-                 shuffle=True):
+                 shuffle=True,
+                 warnings=False):
         """Initialization
         
         Args:
@@ -32,7 +34,9 @@ class DataGenerator(Sequence):
         list_IDs: 
             list of all filename/label ids to use in the generator
         main_labels: 
-            list of all main labels.
+            list of all main labels. 
+        label_dict: dict
+            Dictionary for how to ouput the found labels to the model.
         path_data: str
             Foldername for all npy and csv files...
         filenames: 
@@ -60,6 +64,7 @@ class DataGenerator(Sequence):
         """
         self.list_IDs = list_IDs
         self.main_labels = main_labels
+        self.label_dict = label_dict
         self.path_data = path_data
         self.filenames = filenames
         self.data_path = data_path
@@ -72,7 +77,10 @@ class DataGenerator(Sequence):
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.shuffle = shuffle
+        self.warnings = warnings
         self.on_epoch_end()
+        
+        self.label_binarize = LabelBinarizer()
 
 
     def __len__(self):
@@ -118,9 +126,10 @@ class DataGenerator(Sequence):
         
         # Up-sampling
         if self.up_sampling:
-            labels_unique = list(set(self.main_labels))
+            main_labels = [self.main_labels[ID] for ID in self.list_IDs]
+            labels_unique = list(set(main_labels))
             for label in labels_unique:
-                idx = np.where(np.array(self.main_labels) == label)[0]
+                idx = np.where(np.array(main_labels) == label)[0]
                 idx_labels.append(idx)
                 label_count.append(len(idx))
              
@@ -167,6 +176,9 @@ class DataGenerator(Sequence):
                                               data_labels)
             
             X_data = np.concatenate((X_data, X), axis=0)
+            
+            # Replace labels based on label_dict:
+            y = [self.transform_label(label) for label in y]
             y_data += y
         
         if self.shuffle:
@@ -175,7 +187,8 @@ class DataGenerator(Sequence):
             X_data = X_data[idx, :, :]
             y_data = [y_data[i] for i in idx]
         
-        return X_data, y_data
+        y_data = self.label_binarize.fit_transform(np.array(y_data).astype(int))
+        return np.swapaxes(X_data,1,2), y_data
     
 
     def create_averaged_epoch(self,
@@ -203,7 +216,8 @@ class DataGenerator(Sequence):
             if len(idx) >= self.n_average:        
                 select = np.random.choice(idx, self.n_average, replace=False)
             elif len(idx) >= self.n_average/2: 
-                print("Found only", len(idx), " epochs and will take those!")
+                if self.warnings:
+                    print("Found only", len(idx), " epochs and will take those!")
                 signal_averaged = np.mean(data_signal[idx,:,:], axis=0)
                 break
             else:
@@ -246,5 +260,13 @@ class DataGenerator(Sequence):
         readFile.close()
         
         return metadata[0]
+
      
-        
+    def transform_label(self,
+                        label):
+        if label in self.label_dict:
+            label_new = self.label_dict[label]
+        else:
+            label_new = None
+            
+        return label_new
