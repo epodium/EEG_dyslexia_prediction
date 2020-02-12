@@ -2,3 +2,7 @@ config.py
 .ipynb_checkpoints
 *.pdf
 __pycache__
+
+# Spyder project settings
+.spyderproject
+.spyproject
