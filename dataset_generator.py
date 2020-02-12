@@ -14,6 +14,7 @@ class DataGenerator(Sequence):
                  list_IDs,
                  main_labels,
                  label_dict,
+                 binarizer_dict,
                  path_data,
                  filenames,
                  data_path, 
@@ -80,7 +81,8 @@ class DataGenerator(Sequence):
         self.warnings = warnings
         self.on_epoch_end()
         
-        self.label_binarize = LabelBinarizer()
+        self.binarizer_dict = binarizer_dict
+        #self.label_binarize = LabelBinarizer()
 
 
     def __len__(self):
@@ -187,7 +189,8 @@ class DataGenerator(Sequence):
             X_data = X_data[idx, :, :]
             y_data = [y_data[i] for i in idx]
         
-        y_data = self.label_binarize.fit_transform(np.array(y_data).astype(int))
+        #y_data = self.label_binarize.fit_transform(np.array(y_data).astype(int))
+        y_data = np.array([self.binarizer_dict[x] for x in y_data])
         return np.swapaxes(X_data,1,2), y_data
     
 
@@ -215,12 +218,10 @@ class DataGenerator(Sequence):
             
             if len(idx) >= self.n_average:        
                 select = np.random.choice(idx, self.n_average, replace=False)
-            elif len(idx) >= self.n_average/2: 
+            else: 
                 if self.warnings:
                     print("Found only", len(idx), " epochs and will take those!")
                 signal_averaged = np.mean(data_signal[idx,:,:], axis=0)
-                break
-            else:
                 break
                 
             signal_averaged = np.mean(data_signal[select,:,:], axis=0)
