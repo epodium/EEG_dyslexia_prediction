@@ -25,8 +25,10 @@ class DataGenerator(Sequence):
                  iter_per_epoch = 2,
                  up_sampling = True,
                  n_timepoints = 501,
-                 n_channels=30, 
-                 n_classes=1, 
+                 n_channels=30,
+                 include_baseline = False,
+                 subtract_baseline = False,
+                 baseline_label = None,
                  shuffle=True,
                  warnings=False):
         """Initialization
@@ -59,8 +61,6 @@ class DataGenerator(Sequence):
             Timepoint dimension of data.
         n_channels: 
             number of input channels
-        n_classes: 
-            number of output channels ?
         shuffle: 
             True to shuffle label indexes after every epoch
         """
@@ -78,7 +78,9 @@ class DataGenerator(Sequence):
         self.up_sampling = up_sampling
         self.n_timepoints = n_timepoints
         self.n_channels = n_channels
-        self.n_classes = n_classes
+        self.include_baseline = include_baseline
+        self.subtract_baseline = subtract_baseline
+        self.baseline_label = baseline_label
         self.shuffle = shuffle
         self.warnings = warnings
         self.on_epoch_end()
