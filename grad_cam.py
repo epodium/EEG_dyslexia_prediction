@@ -1,5 +1,4 @@
 import sys
-import os
 import numpy as np
 import cv2
 from matplotlib import pyplot as plt
@@ -189,11 +188,11 @@ def compute_saliency(model, guided_model, img_path, layer_name='block5_conv3', n
     return gradcam, gb, guided_gradcam
 
 
-if __name__ == '__main__':
-    model = build_model()
-    guided_model = build_guided_model()
-    if len(sys.argv) < 2:
-        sys.argv = ["python3", "cat_dog.png"]
-    gradcam, gb, guided_gradcam = compute_saliency(
-        model, guided_model, layer_name='block5_conv3',
-        img_path=sys.argv[1], n_class=-1, visualize=True, save=True)
+# if __name__ == '__main__':
+#     model = build_model()
+#     guided_model = build_guided_model()
+#     if len(sys.argv) < 2:
+#         sys.argv = ["python3", "cat_dog.png"]
+#     gradcam, gb, guided_gradcam = compute_saliency(
+#         model, guided_model, layer_name='block5_conv3',
+#         img_path=sys.argv[1], n_class=-1, visualize=True, save=True)
