@@ -69,8 +69,12 @@ def grad_cam(input_model, input_image, n_class, layer_name):
     # grads = normalize(grads)
     gradient_function = K.function([input_model.input], [conv_output, grads])
 
-    output, grads_val = gradient_function([input_image])
-    output, grads_val = output[0, :], grads_val[0, :, :, :]
+    print(f"input_model.input {input_model.input}")
+    print(f"conv_output {conv_output}")
+    print(f"grads {grads}")
+
+    output, grads_val = gradient_function(np.array([input_image]))
+    output, grads_val = output[0, :], grads_val[0, :, :]
 
     weights = np.mean(grads_val, axis=(0, 1))
     cam = np.dot(output, weights)
@@ -138,7 +142,8 @@ def compute_saliency(model, guided_model, img_path, layer_name='block5_conv3', n
         plt.figure(figsize=(15, 10))
         plt.title('GradCAM')
         plt.axis('off')
-        plt.imshow(load_image(img_path, preprocess=False))
+#        plt.imshow(load_image(img_path, preprocess=False))
+        plt.imshow(X[0])
         plt.imshow(gradcam, cmap='jet', alpha=0.5)
 
     return gradcam
