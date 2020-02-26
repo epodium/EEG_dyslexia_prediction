@@ -488,12 +488,12 @@ model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['a
 # In[Train]:
 
 checkpointer = ModelCheckpoint(filepath = output_file, 
-                               monitor='val_acc', 
+                               monitor='val_accuracy', 
                                verbose=1, 
                                save_best_only=True)
-earlystopper = EarlyStopping(monitor='val_acc', patience=10, verbose=1)
+earlystopper = EarlyStopping(monitor='val_accuracy', patience=10, verbose=1)
 
-model.fit_generator(generator=train_generator, 
+model.fit(x=train_generator, 
                    validation_data=val_generator,
                    epochs=50,
                    callbacks = [
