@@ -418,6 +418,7 @@ from tensorflow.keras import layers
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from tensorflow.keras import optimizers
 
+tf.compat.v1.disable_eager_execution() # TODO Delete, substitute gradients for GradientTape
 
 # In[40]:
 
@@ -483,6 +484,18 @@ if os.path.isfile(output_file):
 #model.compile(loss='categorical_crossentropy', optimizer=Adam, metrics=['accuracy'])
 #model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
 model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
+
+
+# In[GradCam]
+
+from grad_cam import grad_cam
+
+input_model = model
+input_image = X[0]
+n_class = 0
+layer_name = "conv1d_2"
+
+gradcam = grad_cam(input_model, input_image, n_class, layer_name)
 
 
 # In[Train]:
