@@ -3,7 +3,7 @@ from tensorflow.keras.utils import Sequence
 import numpy as np
 import os
 import csv
-from sklearn.preprocessing import LabelBinarizer
+#from sklearn.preprocessing import LabelBinarizer
 
 class DataGenerator(Sequence):
     """Generates data for loading (preprocessed) EEG timeseries data.
@@ -256,11 +256,12 @@ class DataGenerator(Sequence):
         with open(filename, 'r') as readFile:
             reader = csv.reader(readFile, delimiter=',')
             for row in reader:
-                #if len(row) > 0:
-                metadata.append(row)
+                if len(row) > 0:
+                # metadata.append(row)
+                    metadata.append(''.join(row)) # TODO Delete, hotfix for csv issue
         readFile.close()
         
-        return metadata[0]
+        return metadata
 
      
     def transform_label(self,
