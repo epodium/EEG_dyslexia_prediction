@@ -31,7 +31,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 sys.path.insert(0, os.path.dirname(os.getcwd()))
 
-#import mne
+import mne
 #%matplotlib inline
 #from mayavi import mlab
 
@@ -49,7 +49,7 @@ PATH_CNTS = os.path.join(PATH_DATA, "17mnd mmn")
 # In[3]:
 
 
-PATH_DATA_processed = os.path.join(PATH_DATA, 'processed_data_17mn')
+PATH_DATA_processed = os.path.join(PATH_DATA, 'processed_data')
 
 dirs = os.listdir(PATH_DATA_processed)
 files_npy = fnmatch.filter(dirs, "*.npy")
@@ -59,8 +59,7 @@ files_csv = fnmatch.filter(dirs, "*.csv")
 # In[4]:
 
 
-print(len(files_csv))
-print(len(files_npy))
+len(files_csv), len(files_npy)
 
 
 # ### Count the (main) labels for all present files
@@ -74,12 +73,11 @@ def read_labels(filename, PATH):
     with open(filename, 'r') as readFile:
         reader = csv.reader(readFile, delimiter=',')
         for row in reader:
-            if len(row) > 0:
-                # metadata.append(row)
-                metadata.append(''.join(row)) # TODO Delete, hotfix for csv issue
+            #if len(row) > 0:
+            metadata.append(row)
     readFile.close()
     
-    return metadata
+    return metadata[0]
 
 
 # In[6]:
@@ -99,6 +97,12 @@ for filename in files_csv:
         idx = np.where(np.array(y_EEG) == label)[0]
         label_count.append(len(idx))
     label_counts.append(label_count)
+
+
+# In[44]:
+
+
+label_counts[:10], label_collection
 
 
 # In[7]:
@@ -183,14 +187,13 @@ main_label_dict  = {
 
 
 main_labels = [transform_label(x[0], label_dict, main_label_dict)[1] for x in label_collection]
-print(len(main_labels))
+len(main_labels)
 
 
 # In[10]:
 
 
-print(main_labels.count('0'))
-print(main_labels.count('1'))
+main_labels.count('0'), main_labels.count('1')
 
 
 # ## Import and initiate data generator function
@@ -204,7 +207,7 @@ from dataset_generator import DataGenerator
 # In[12]:
 
 
-print(files_csv[:5])
+files_csv[:5]
 
 
 # ### Split data set
@@ -320,7 +323,6 @@ label_dict  = {
     '66dys1_risk1': '5',
 }
 
-
 binarizer_dict  = {
     '0': [1, 0, 0, 0, 0, 0],
     '1': [0, 1, 0, 0, 0, 0],
@@ -378,8 +380,7 @@ X, y  = train_generator.__getitem__(0)
 # In[35]:
 
 
-print(X.shape)
-print(len(y))
+X.shape, len(y)
 
 
 # In[36]:
@@ -418,7 +419,6 @@ from tensorflow.keras import layers
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from tensorflow.keras import optimizers
 
-tf.compat.v1.disable_eager_execution() # TODO Delete, substitute gradients for GradientTape
 
 # In[40]:
 
@@ -454,6 +454,10 @@ model.add(layers.Dropout(0.5))
 model.add(layers.Dense(60, activation='relu'))
 model.add(layers.Dense(n_outputs, activation='softmax'))
 
+#Adam = optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, amsgrad=True)
+#model.compile(loss='categorical_crossentropy', optimizer=Adam, metrics=['accuracy'])
+#model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
 
 
 # In[39]:
@@ -462,51 +466,19 @@ model.add(layers.Dense(n_outputs, activation='softmax'))
 model.summary()
 
 
-# In[Load model]:
+# In[41]:
 
 
 # Save best model and include early stopping
 output_filename = 'CNN_EEG_classifier_avg.hdf5'
 output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
-
-if os.path.isfile(output_file):
-    try:
-        model.load_weights(output_file)
-        print(f"Loaded weights from {output_file}")
-    except Exception as e:
-        print(repr(e))
-        
-
-
-# In[Compile]:
-
-#Adam = optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, amsgrad=True)
-#model.compile(loss='categorical_crossentropy', optimizer=Adam, metrics=['accuracy'])
-#model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
-
-
-# In[GradCam]
-
-from grad_cam import grad_cam
-
-input_model = model
-input_image = X[0]
-n_class = 0
-layer_name = "conv1d_2"
-
-gradcam = grad_cam(input_model, input_image, n_class, layer_name)
-
-
-# In[Train]:
-
 checkpointer = ModelCheckpoint(filepath = output_file, 
-                               monitor='val_accuracy', 
+                               monitor='val_acc', 
                                verbose=1, 
                                save_best_only=True)
-earlystopper = EarlyStopping(monitor='val_accuracy', patience=10, verbose=1)
+earlystopper = EarlyStopping(monitor='val_acc', patience=10, verbose=1)
 
-model.fit(x=train_generator, 
+model.fit_generator(generator=train_generator, 
                    validation_data=val_generator,
                    epochs=50,
                    callbacks = [
