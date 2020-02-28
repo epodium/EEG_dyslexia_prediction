@@ -302,6 +302,7 @@ label_dict  = {
 }
 
 
+
 # In[20]:
 
 
@@ -320,7 +321,6 @@ label_dict  = {
     '66dys1_risk1': '5',
 }
 
-
 binarizer_dict  = {
     '0': [1, 0, 0, 0, 0, 0],
     '1': [0, 1, 0, 0, 0, 0],
@@ -329,6 +329,30 @@ binarizer_dict  = {
     '4': [0, 0, 0, 0, 1, 0],
     '5': [0, 0, 0, 0, 0, 1]
 }
+
+
+# In[20]:
+
+def binarize_labels(label_dict):
+    values = [int(x) for x in label_dict.values()]
+    size = np.max(values)
+    binarizer_dict = dict()
+    for value in set(label_dict.values()):
+        bin_value = [0] * (size+1)
+        bin_value[int(value)] = 1
+        binarizer_dict[value] = bin_value
+    return binarizer_dict
+
+
+label_dict  = {
+    '66dys0_risk0': '0',
+    '66dys0_risk1': '0',
+    '66dys1_risk0': '1',
+    '66dys1_risk1': '1',
+}
+
+
+binarizer_dict  = binarize_labels(label_dict)
 
 
 # In[124]:
@@ -478,7 +502,7 @@ def compile_model(model):
 # Simple CNN model
 n_timesteps = 501
 n_features = 30
-n_outputs = 6
+n_outputs = 2
 
 model = tf.keras.Sequential()
 #model.add(layers.Conv1D(filters=32, kernel_size=20, activation='relu', input_shape=(n_timesteps,n_features)))
@@ -573,7 +597,7 @@ del model
 # Simple CNN model
 n_timesteps = 501
 n_features = 30
-n_outputs = 6
+n_outputs = 2
 
 model = tf.keras.Sequential()
 #model.add(layers.Conv1D(filters=32, kernel_size=20, activation='relu', input_shape=(n_timesteps,n_features)))
@@ -646,9 +670,9 @@ from grad_cam import grad_cam
 
 input_model = model
 input_image = X[0]
-n_class = 0
-#layer_name = "conv2d_2"
-layer_name = "average_pooling2d"
+n_class = 1
+layer_name = "conv2d_7"
+#layer_name = "average_pooling2d_1"
 
 gradcam = grad_cam(input_model, input_image, n_class, layer_name)
 
