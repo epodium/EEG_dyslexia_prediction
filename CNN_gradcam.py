@@ -434,6 +434,44 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 tf.compat.v1.disable_eager_execution() # TODO Delete, substitute gradients for GradientTape
 
 
+# In[Define model functions]
+
+def start_training(model, output_file, train_generator, val_generator):
+    checkpointer = ModelCheckpoint(filepath = output_file, 
+                                   monitor='val_accuracy', 
+                                   verbose=1, 
+                                   save_best_only=True)
+    earlystopper = EarlyStopping(monitor='val_accuracy', patience=10, verbose=1)
+    
+    model.fit(x=train_generator, 
+                       validation_data=val_generator,
+                       epochs=50,
+                       callbacks = [
+                           checkpointer, 
+                            earlystopper,
+                       ]
+                      )
+
+
+def load_model(model, output_file):
+    if os.path.isfile(output_file):
+        try:
+            model.load_weights(output_file)
+            print(f"Loaded weights from {output_file}")
+        except Exception as e:
+            print(repr(e))
+
+
+def compile_model(model):
+    #Adam = optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, amsgrad=True)
+    #model.compile(loss='categorical_crossentropy', optimizer=Adam, metrics=['accuracy'])
+    #model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+    #model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
+    
+    model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=['accuracy'])
+    #model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+
 # In[40]:
 
 
@@ -462,8 +500,6 @@ model.add(layers.Flatten())
 model.add(layers.Dense(100, activation='relu'))
 model.add(layers.Dropout(0.5))
 model.add(layers.Dense(n_outputs, activation='softmax'))
-model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=['accuracy'])
-#model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
 # In[39]:
@@ -475,47 +511,33 @@ model.summary()
 # In[Output file]:
 
 # Save best model and include early stopping
-output_filename = 'CNN_EEG_classifier_avg.hdf5'
+output_filename = 'CNN_EEG_classifier_avg-100.hdf5'
 output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
 
 
 # In[Load model]:
 
-if os.path.isfile(output_file):
-    try:
-        model.load_weights(output_file)
-        print(f"Loaded weights from {output_file}")
-    except Exception as e:
-        print(repr(e))
-        
-
-
-# In[Train]:
-
-do_train = True
-if do_train:
-    checkpointer = ModelCheckpoint(filepath = output_file, 
-                                   monitor='val_accuracy', 
-                                   verbose=1, 
-                                   save_best_only=True)
-    earlystopper = EarlyStopping(monitor='val_accuracy', patience=10, verbose=1)
-    
-    model.fit(x=train_generator, 
-                       validation_data=val_generator,
-                       epochs=50,
-                       callbacks = [
-                           checkpointer, 
-                            earlystopper,
-                       ]
-                      )
+load_model(model, output_file)
 
 
 # In[Compile]:
 
-#Adam = optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999, amsgrad=True)
-#model.compile(loss='categorical_crossentropy', optimizer=Adam, metrics=['accuracy'])
-#model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
+compile_model(model)
+
+
+
+# In[Train]:
+start_training(model, output_file, train_generator, val_generator)
+
+# In[Define Visualize Grad_Cam]
+from matplotlib import pyplot as plt
+
+def visualize_gradcam(gradcam):
+    plt.figure(figsize=(15, 10))
+    plt.title('GradCAM')
+    plt.axis('off')
+    #plt.imshow(np.transpose(network_input))
+    plt.imshow(np.transpose(gradcam), cmap='jet', alpha=0.5)
 
 
 # In[GradCam]
@@ -525,19 +547,14 @@ from grad_cam import grad_cam
 input_model = model
 input_image = X[0]
 n_class = 0
-layer_name = "conv1d_2"
+#layer_name = "conv2d_2"
+layer_name = "average_pooling2d"
 
 gradcam = grad_cam(input_model, input_image, n_class, layer_name)
 
 
-# In[Visualize Grad_Cam]
-from matplotlib import pyplot as plt
-
-plt.figure(figsize=(15, 10))
-plt.title('GradCAM')
-plt.axis('off')
-#plt.imshow(np.transpose(X[0]))
-plt.imshow(np.transpose(gradcam), cmap='jet', alpha=0.5)
+# In[Visualize]
+visualize_gradcam(gradcam)
 
 
 # In[81]:
@@ -546,3 +563,98 @@ plt.imshow(np.transpose(gradcam), cmap='jet', alpha=0.5)
 model.get_weights()
 
 
+# In[Clear memory]
+tf.keras.backend.clear_session()
+del model
+
+
+# In[Network reduced dimensionality with Conv 1x1]
+
+# Simple CNN model
+n_timesteps = 501
+n_features = 30
+n_outputs = 6
+
+model = tf.keras.Sequential()
+#model.add(layers.Conv1D(filters=32, kernel_size=20, activation='relu', input_shape=(n_timesteps,n_features)))
+model.add(layers.Conv2D(filters=32, kernel_size=(20, 1), input_shape=(n_timesteps,n_features, 1)))
+model.add(layers.BatchNormalization())
+model.add(layers.LeakyReLU())
+
+model.add(layers.Conv2D(filters=64, kernel_size=(10, 1))) #, activation='relu'))
+model.add(layers.BatchNormalization())
+model.add(layers.LeakyReLU())
+
+model.add(layers.Conv2D(filters=32, kernel_size=(5, 1))) #, activation='relu'))
+model.add(layers.BatchNormalization())
+model.add(layers.LeakyReLU())
+
+model.add(layers.Conv2D(filters=1, kernel_size=(1, 1))) # Reducing dimensionality on filters dimension
+model.add(layers.BatchNormalization())
+model.add(layers.LeakyReLU())
+
+model.add(layers.AveragePooling2D(pool_size=(4, 1))) 
+#model.add(layers.GlobalAveragePooling1D(data_format=None))
+
+model.add(layers.Flatten())
+model.add(layers.Dense(100, activation='relu'))
+model.add(layers.Dropout(0.5))
+model.add(layers.Dense(n_outputs, activation='softmax'))
+
+
+# In[39]:
+
+
+model.summary()
+
+
+# In[Output file]:
+
+# Save best model and include early stopping
+output_filename = 'CNN_EEG_classifier_avg-4_conv-1-1.hdf5'
+output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
+
+
+# In[Load model]:
+
+load_model(model, output_file)
+
+
+# In[Compile]:
+
+compile_model(model)
+
+
+
+# In[Train]:
+start_training(model, output_file, train_generator, val_generator)
+
+# In[Define Visualize Grad_Cam]
+from matplotlib import pyplot as plt
+
+def visualize_gradcam(gradcam):
+    plt.figure(figsize=(15, 10))
+    plt.title('GradCAM')
+    plt.axis('off')
+    #plt.imshow(np.transpose(network_input))
+    plt.imshow(np.transpose(gradcam), cmap='jet', alpha=0.5)
+
+
+# In[GradCam]
+
+from grad_cam import grad_cam
+
+input_model = model
+input_image = X[0]
+n_class = 0
+#layer_name = "conv2d_2"
+layer_name = "average_pooling2d"
+
+gradcam = grad_cam(input_model, input_image, n_class, layer_name)
+
+
+# In[Visualize]
+visualize_gradcam(gradcam)
+
+
+# In[81]:
