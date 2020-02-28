@@ -198,7 +198,7 @@ print(main_labels.count('1'))
 # In[11]:
 
 
-from dataset_generator import DataGenerator
+from modified_dataset_generator import ModifiedDataGenerator
 
 
 # In[12]:
@@ -367,7 +367,7 @@ ignore_labels = ['3dys0_risk0', '3dys0_risk1', '3dys1_risk0', '3dys1_risk1',
 # In[33]:
 
 
-train_generator = DataGenerator(list_IDs = IDs_train,
+train_generator = ModifiedDataGenerator(list_IDs = IDs_train,
                                  main_labels = main_labels,
                                  label_dict = label_dict,
                                  binarizer_dict = binarizer_dict,
@@ -385,7 +385,7 @@ train_generator = DataGenerator(list_IDs = IDs_train,
 #                                 n_classes=1, 
                                  shuffle=True)
 
-val_generator = DataGenerator(list_IDs = IDs_val,
+val_generator = ModifiedDataGenerator(list_IDs = IDs_val,
                                  main_labels = main_labels,
                                  label_dict = label_dict,
                                  binarizer_dict = binarizer_dict,
@@ -426,7 +426,7 @@ print(y[:11])
 # In[42]:
 
 
-for i in range(10):
+for i in range(min(10, len(y))):
     label = np.where(y[i] == 1)[0][0]
     plt.plot(X[i,:,22], alpha = 0.5, color=(label/5,0, label/5))
 
@@ -551,7 +551,8 @@ compile_model(model)
 
 
 # In[Train]:
-start_training(model, output_file, train_generator, val_generator)
+if do_train:
+    start_training(model, output_file, train_generator, val_generator)
 
 # In[Define Visualize Grad_Cam]
 from matplotlib import pyplot as plt
@@ -570,15 +571,15 @@ from grad_cam import grad_cam
 
 input_model = model
 input_image = X[0]
-n_class = 0
 #layer_name = "conv2d_2"
 layer_name = "average_pooling2d"
 
-gradcam = grad_cam(input_model, input_image, n_class, layer_name)
-
-
-# In[Visualize]
+gradcam = grad_cam(input_model, input_image, 0, layer_name)
 visualize_gradcam(gradcam)
+gradcam = grad_cam(input_model, input_image, 1, layer_name)
+visualize_gradcam(gradcam)
+
+
 
 
 # In[81]:
@@ -651,7 +652,9 @@ compile_model(model)
 
 
 # In[Train]:
-start_training(model, output_file, train_generator, val_generator)
+
+if do_train:
+    start_training(model, output_file, train_generator, val_generator)
 
 # In[Define Visualize Grad_Cam]
 from matplotlib import pyplot as plt
@@ -669,8 +672,9 @@ def visualize_gradcam(gradcam):
 from grad_cam import grad_cam
 
 input_model = model
-input_image = X[0]
-n_class = 1
+i = 0
+input_image = X[i]
+n_class = model.predict(X[i])
 layer_name = "conv2d_7"
 #layer_name = "average_pooling2d_1"
 
@@ -681,4 +685,28 @@ gradcam = grad_cam(input_model, input_image, n_class, layer_name)
 visualize_gradcam(gradcam)
 
 
-# In[81]:
+# In[Eli5 visualization (high level)]:
+import eli5
+from IPython.display import display
+
+
+expl = eli5.explain_prediction(model, input_image)
+heatmap = expl.targets[0].heatmap
+heatmap_im = eli5.formatters.image.heatmap_to_image(heatmap)
+display(heatmap_im)
+
+
+
+# In[Eli5 visualization (low level)]:
+
+from eli5.keras import gradcam as eli5_gc
+
+estimator = model
+doc = input_image
+activation_layer = layer_name
+
+weights, activations, gradients, predicted_idx, predicted_val \
+    = eli5_gc.gradcam_backend(estimator, doc, None, activation_layer)
+
+eli5_gradcam = eli5_gc.gradcam(weights, activations)
+visualize_gradcam(eli5_gradcam)
