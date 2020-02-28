@@ -142,7 +142,7 @@ def compute_saliency(model, guided_model, img_path, layer_name='block5_conv3', n
         plt.figure(figsize=(15, 10))
         plt.title('GradCAM')
         plt.axis('off')
-        plt.imshow(load_image(img_path, preproces!!s=False))
+        plt.imshow(load_image(img_path, preprocess=False))
         plt.imshow(gradcam, cmap='jet', alpha=0.5)
 
     return gradcam
