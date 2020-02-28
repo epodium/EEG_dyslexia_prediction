@@ -81,7 +81,7 @@ def grad_cam(input_model, input_image, n_class, layer_name):
 
     # Process CAM
 #    cam = cv2.resize(cam, (W, H), cv2.INTER_LINEAR)
-    cam = np.maximum(cam, 0)
+    cam = np.maximum(cam, 0) # Relu, removes negatives
     cam_max = cam.max() 
     if cam_max != 0: 
         cam = cam / cam_max
