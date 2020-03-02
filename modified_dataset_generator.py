@@ -32,7 +32,8 @@ class ModifiedDataGenerator(DataGenerator):
             subtract_baseline = False,
             baseline_label = None,
             shuffle=True,
-            warnings=False):
+            warnings=False,
+            functions_dict=None):
         super().__init__(
                 list_IDs,
                 main_labels,
@@ -55,39 +56,42 @@ class ModifiedDataGenerator(DataGenerator):
                 shuffle,
                 warnings)
         
-        self.initialize_functions()
+        if not functions_dict:
+            functions_dict = self.generate_empty_functions()
+        self.functions_dict = functions_dict
 
 
-    def initialize_functions(self):
-        functions = np.array([[[0]] * self.n_channels] * self.n_timepoints)
-        print(functions.shape)
-        
-        
-        self.functions = functions
+    def generate_empty_functions(self):
+        functions = np.array([[[1]] * self.n_channels] * self.n_timepoints)
+        functions_dict = dict()
+        for label in self.label_dict.values():
+            bin_label = np.array(self.binarizer_dict[label])
+            functions_dict[str(bin_label)] = functions
+        return functions_dict
+
 
     def __getitem__(self, index):
-        if self.to_fit:
-            original_X, y = super().__getitem__(index)
-        else:
-            original_X = super().__getitem__(index)
-        X = self.modify_batch(original_X)
+        original_X, y = super().generate_item(index)
+        X = self.modify_batch(original_X, y)
         if self.to_fit:
             return X, y
         else:
             return X
 
 
-    def modify_batch(self, original_X):
+    def modify_batch(self, original_X, y):
         X = original_X # TODO Modify
         for i in range(X.shape[0]):
-            item = self.modify_item(X[i])
+            item = self.modify_item(X[i], y[i])
             X[i] = item
         return X
 
 
-    def modify_item(self, o_item):
-        item = np.add(o_item, self.functions)
-        return item
+    def modify_item(self, o_item, bin_label):
+        functions = self.functions_dict[str(bin_label)]
+        # item = np.add(o_item, functions)
+        # return item
+        return functions
 
 
 
