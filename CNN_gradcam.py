@@ -195,11 +195,6 @@ print(main_labels.count('1'))
 
 # ## Import and initiate data generator function
 
-# In[11]:
-
-
-from modified_dataset_generator import ModifiedDataGenerator
-
 
 # In[12]:
 
@@ -364,6 +359,74 @@ ignore_labels = ['3dys0_risk0', '3dys0_risk1', '3dys1_risk0', '3dys1_risk1',
                 '13dys0_risk0', '13dys0_risk1', '13dys1_risk0', '13dys1_risk1']
 
 
+
+# In[Functions to modify data]
+
+n_channels=30
+n_timepoints = 501
+
+
+from scipy import signal
+
+line = np.linspace(0, 1, n_timepoints, endpoint=False)
+all_functions = np.array([
+    line,
+    signal.square(10*np.pi*2 *line),
+    signal.square(10*np.pi*4 *line),
+    signal.square(10*np.pi*6 *line),
+    signal.square(10*np.pi*8 *line),
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    np.flip(line),
+    signal.square(10*np.pi *line),
+    signal.square(10*np.pi*3 *line),
+    signal.square(10*np.pi*5 *line),
+    signal.square(10*np.pi*7 *line),
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints,
+    [0]*n_timepoints
+    ])
+
+   
+functions_dict = dict()
+for label in label_dict.values():
+    functions = np.array([[0] * n_timepoints] * n_channels)
+    for i in range(10):
+        if label == '1':
+            i += 10
+        functions[i] = np.add(functions[i], all_functions[i])
+    functions = np.transpose(functions).reshape((n_timepoints, n_channels, 1))
+    functions_dict[str(np.array(binarizer_dict[label]))] = functions
+
+# functions_dict = None
+
+# In[Visualize functions]:
+
+plt.imshow(functions_dict["[0 1]"].reshape((n_timepoints, n_channels)))
+plt.imshow(functions_dict["[1 0]"].reshape((n_timepoints, n_channels)))
+
+
+# In[11]:
+
+
+from modified_dataset_generator import ModifiedDataGenerator
+
+
 # In[33]:
 
 
@@ -383,7 +446,8 @@ train_generator = ModifiedDataGenerator(list_IDs = IDs_train,
                                  n_timepoints = 501,
                                  n_channels=30, 
 #                                 n_classes=1, 
-                                 shuffle=True)
+                                 shuffle=True,
+                                 functions_dict=functions_dict)
 
 val_generator = ModifiedDataGenerator(list_IDs = IDs_val,
                                  main_labels = main_labels,
@@ -401,7 +465,8 @@ val_generator = ModifiedDataGenerator(list_IDs = IDs_val,
                                  n_timepoints = 501,
                                  n_channels=30, 
 #                                 n_classes=1, 
-                                 shuffle=True)
+                                 shuffle=True,
+                                 functions_dict=functions_dict)
 
 
 # In[34]:
@@ -541,7 +606,8 @@ output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
 
 # In[Load model]:
 
-load_model(model, output_file)
+if do_load:
+    load_model(model, output_file)
 
 
 # In[Compile]:
@@ -642,7 +708,8 @@ output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
 
 # In[Load model]:
 
-load_model(model, output_file)
+if do_load:
+    load_model(model, output_file)
 
 
 # In[Compile]:
@@ -664,7 +731,9 @@ def visualize_gradcam(gradcam):
     plt.title('GradCAM')
     plt.axis('off')
     #plt.imshow(np.transpose(network_input))
-    plt.imshow(np.transpose(gradcam), cmap='jet', alpha=0.5)
+    im = plt.imshow(np.transpose(gradcam), cmap='jet', alpha=0.5)
+    im.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05))
+    plt.show()
 
 
 # In[GradCam]
@@ -672,17 +741,18 @@ def visualize_gradcam(gradcam):
 from grad_cam import grad_cam
 
 input_model = model
-i = 0
+i = 3
 input_image = X[i]
-n_class = model.predict(X[i])
-layer_name = "conv2d_7"
-#layer_name = "average_pooling2d_1"
+n_class = np.argmax(model.predict(np.array([X[i]])))
+# n_class = np.argmin(model.predict(np.array([X[i]])))
+# layer_name = "conv2d_3"
+layer_name = "average_pooling2d"
 
 gradcam = grad_cam(input_model, input_image, n_class, layer_name)
 
 
 # In[Visualize]
-visualize_gradcam(gradcam)
+visualize_gradcam(gradcam.transpose())
 
 
 # In[Eli5 visualization (high level)]:
