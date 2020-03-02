@@ -107,6 +107,17 @@ class DataGenerator(Sequence):
         
         return: X and y when fitting. X only when predicting
         """
+
+        # Generate data
+        X, y = self.generate_item(index)
+
+        if self.to_fit:
+            return X, y
+        else:
+            return X
+
+
+    def generate_item(self, index):
         # Generate indexes of the batch
         indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
 
@@ -115,11 +126,7 @@ class DataGenerator(Sequence):
 
         # Generate data
         X, y = self.generate_data(list_IDs_temp)
-
-        if self.to_fit:
-            return X, y
-        else:
-            return X
+        return X, y
 
 
     def on_epoch_end(self):
