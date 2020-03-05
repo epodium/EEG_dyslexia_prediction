@@ -369,7 +369,7 @@ n_timepoints = 501
 from scipy import signal
 
 line = np.linspace(0, 1, n_timepoints, endpoint=False)
-all_functions = np.array([
+channel_functions = np.array([
     line,
     signal.square(10*np.pi*2 *line),
     signal.square(10*np.pi*4 *line),
@@ -409,7 +409,7 @@ for label in label_dict.values():
     for i in range(10):
         if label == '1':
             i += 10
-        functions[i] = np.add(functions[i], all_functions[i])
+        functions[i] = np.add(functions[i], channel_functions[i])
     functions = np.transpose(functions).reshape((n_timepoints, n_channels, 1))
     functions_dict[str(np.array(binarizer_dict[label]))] = functions
 
@@ -417,17 +417,17 @@ for label in label_dict.values():
 
 # In[Visualize functions]:
 
+fig = plt.figure()
 plt.imshow(functions_dict["[0 1]"].reshape((n_timepoints, n_channels)))
+fig.show()
+fig = plt.figure()
 plt.imshow(functions_dict["[1 0]"].reshape((n_timepoints, n_channels)))
-
+fig.show()
 
 # In[11]:
 
 
 from modified_dataset_generator import ModifiedDataGenerator
-
-
-# In[33]:
 
 
 train_generator = ModifiedDataGenerator(list_IDs = IDs_train,
@@ -469,6 +469,42 @@ val_generator = ModifiedDataGenerator(list_IDs = IDs_val,
                                  functions_dict=functions_dict)
 
 
+
+# In[Fake data]
+from fake_dataset_generator import FakeDataGenerator
+from sklearn import preprocessing
+
+def generate_fake_data(len_data = 32* 4):
+    y_labels = np.tile([0, 1, 2, 3], len_data)
+    lb = preprocessing.LabelBinarizer()
+    lb.fit(y_labels)
+    
+    y_set = lb.transform(y_labels)
+    
+    x_functions = [None] * len(y_labels)
+    for idx_item in range(len(y_labels)):
+        label = y_labels[idx_item]
+        item = np.array([[0] * n_timepoints] * n_channels) # All zeros
+        # if label != 0:
+        item = np.random.rand(n_channels, n_timepoints) # Random values
+        item = np.subtract(np.multiply(item, 2), 1)
+        if label == 1 or label == 3:
+            for idx_function in range(10):
+                item[idx_function] = np.copy(channel_functions[idx_function])
+        if label == 2 or label == 3:
+            for idx_function in range(10, 20):
+                item[idx_function] = np.copy(channel_functions[idx_function])
+        x_functions[idx_item] = np.transpose(item).reshape((n_timepoints, n_channels, 1))
+    x_set = np.array(x_functions)
+    return x_set, y_set
+
+x_set_train, y_set = generate_fake_data()
+x_set_val, y_set = generate_fake_data()
+
+train_generator = FakeDataGenerator(x_set_train, y_set)
+val_generator = FakeDataGenerator(x_set_val, y_set)
+
+
 # In[34]:
 
 
@@ -498,7 +534,11 @@ for i in range(min(10, len(y))):
 
 # In[ ]:
 
-
+for i in range(4):
+    fig = plt.figure()
+    print(y[i])
+    plt.imshow(X[i].reshape((n_timepoints, n_channels)))
+    fig.show()
 
 
 
@@ -567,7 +607,7 @@ def compile_model(model):
 # Simple CNN model
 n_timesteps = 501
 n_features = 30
-n_outputs = 2
+n_outputs = 4
 
 model = tf.keras.Sequential()
 #model.add(layers.Conv1D(filters=32, kernel_size=20, activation='relu', input_shape=(n_timesteps,n_features)))
@@ -623,27 +663,50 @@ if do_train:
 # In[Define Visualize Grad_Cam]
 from matplotlib import pyplot as plt
 
-def visualize_gradcam(gradcam):
-    plt.figure(figsize=(15, 10))
-    plt.title('GradCAM')
+def visualize_gradcam(gradcam, network_input = None):
+    fig = plt.figure(figsize = (8, 6.4))
+    ticks = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]
+    n_plots = 2
+    first_plot = 0
+    if network_input is not None:
+        n_plots = 3
+        first_plot = 1
+        fig.add_subplot(n_plots, 1, 1)
+        plt.axis('off')
+        # plt.imshow(np.transpose(network_input))
+        plt.imshow(np.transpose(network_input.reshape(network_input.shape[0:2])))
+        plt.colorbar(ticks=ticks, orientation='horizontal')
+    # plt.title('GradCAM')
+    fig.add_subplot(n_plots, 1, first_plot +1)
     plt.axis('off')
-    #plt.imshow(np.transpose(network_input))
-    plt.imshow(np.transpose(gradcam), cmap='jet', alpha=0.5)
-
+    plt.imshow(np.transpose(np.maximum(gradcam, 0)))
+    plt.colorbar(ticks=ticks, orientation='horizontal')
+    fig.show()
+    
+    fig.add_subplot(n_plots, 1, first_plot +2)
+    plt.axis('off')
+    plt.imshow(np.transpose(gradcam))
+    plt.colorbar(ticks=ticks, orientation='horizontal')
+    fig.show()
 
 # In[GradCam]
 
 from grad_cam import grad_cam
 
 input_model = model
-input_image = X[0]
-#layer_name = "conv2d_2"
-layer_name = "average_pooling2d"
-
-gradcam = grad_cam(input_model, input_image, 0, layer_name)
-visualize_gradcam(gradcam)
-gradcam = grad_cam(input_model, input_image, 1, layer_name)
-visualize_gradcam(gradcam)
+for i in range(4):
+    input_image = x_set_val[i]
+    # layer_name = "conv2d_2"
+    layer_name = "average_pooling2d"
+    
+    gradcam = grad_cam(input_model, input_image, 0, layer_name)
+    visualize_gradcam(gradcam, input_image)
+    gradcam = grad_cam(input_model, input_image, 1, layer_name)
+    visualize_gradcam(gradcam, input_image)
+    gradcam = grad_cam(input_model, input_image, 2, layer_name)
+    visualize_gradcam(gradcam, input_image)
+    gradcam = grad_cam(input_model, input_image, 3, layer_name)
+    visualize_gradcam(gradcam, input_image)
 
 
 
@@ -664,7 +727,7 @@ del model
 # Simple CNN model
 n_timesteps = 501
 n_features = 30
-n_outputs = 2
+n_outputs = 4
 
 model = tf.keras.Sequential()
 #model.add(layers.Conv1D(filters=32, kernel_size=20, activation='relu', input_shape=(n_timesteps,n_features)))
@@ -680,7 +743,7 @@ model.add(layers.Conv2D(filters=32, kernel_size=(5, 1))) #, activation='relu'))
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
 
-model.add(layers.Conv2D(filters=1, kernel_size=(1, 1))) # Reducing dimensionality on filters dimension
+model.add(layers.Conv2D(filters=4, kernel_size=(1, 1))) # Reducing dimensionality on filters dimension
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
 
