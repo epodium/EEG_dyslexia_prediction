@@ -8,9 +8,9 @@ from sklearn.preprocessing import LabelBinarizer
 class DataGenerator(Sequence):
     """Generates data for loading (preprocessed) EEG timeseries data.
     Create batches for training or prediction from given folders and filenames.
-    
+
     """
-    def __init__(self, 
+    def __init__(self,
                  list_IDs,
                  main_labels,
                  label_dict,
@@ -18,7 +18,7 @@ class DataGenerator(Sequence):
                  ignore_labels,
                  path_data,
                  filenames,
-                 data_path, 
+                 data_path,
                  to_fit=True, #TODO: implement properly for False
                  n_average = 30,
                  batch_size=32,
@@ -27,31 +27,30 @@ class DataGenerator(Sequence):
                  n_timepoints = 501,
                  n_channels=30,
                  include_baseline = False,
-                 subtract_baseline = False,
-                 baseline_label = None,
+                 subtract_baseline = None,
                  shuffle=True,
                  warnings=False):
         """Initialization
-        
+
         Args:
         --------
-        list_IDs: 
+        list_IDs:
             list of all filename/label ids to use in the generator
-        main_labels: 
-            list of all main labels. 
+        main_labels:
+            list of all main labels.
         label_dict: dict
             Dictionary for how to ouput the found labels to the model.
         path_data: str
             Foldername for all npy and csv files...
-        filenames: 
+        filenames:
             list of image filenames (file names)
-        data_path: 
+        data_path:
             path to data directory
-        to_fit: 
+        to_fit:
             True to return X and y, False to return X only
         n_average: int
             Number of EEG/time series epochs to average.
-        batch_size: 
+        batch_size:
             batch size at each iteration
         iter_per_epoch: int
             Number of iterations over all data points within one epoch.
@@ -59,9 +58,13 @@ class DataGenerator(Sequence):
             If true, create equal amounts of data for all main labels.
         n_timepoints: int
             Timepoint dimension of data.
-        n_channels: 
+        n_channels:
             number of input channels
-        shuffle: 
+        subtract_baseline: None, or list
+            Give label (or list of labels) which should be used as a baseline.,
+            All epochs of those labels will be averaged and then subtracted
+            from all other epochs.
+        shuffle:
             True to shuffle label indexes after every epoch
         """
         self.list_IDs = list_IDs
@@ -80,18 +83,17 @@ class DataGenerator(Sequence):
         self.n_channels = n_channels
         self.include_baseline = include_baseline
         self.subtract_baseline = subtract_baseline
-        self.baseline_label = baseline_label
         self.shuffle = shuffle
         self.warnings = warnings
         self.on_epoch_end()
-        
+
         self.binarizer_dict = binarizer_dict
         #self.label_binarize = LabelBinarizer()
 
 
     def __len__(self):
         """Denotes the number of batches per epoch
-        
+
         return: number of batches per epoch
         """
         return int(np.floor(len(self.list_IDs) / self.batch_size))
@@ -99,12 +101,12 @@ class DataGenerator(Sequence):
 
     def __getitem__(self, index):
         """Generate one batch of data
-        
+
         Args:
         --------
         index: int
             index of the batch
-        
+
         return: X and y when fitting. X only when predicting
         """
         # Generate indexes of the batch
@@ -126,10 +128,10 @@ class DataGenerator(Sequence):
         """Updates indexes after each epoch.
         Takes care of up-sampling and sampling frequency per "epoch".
         """
-      
+
         idx_labels = []
         label_count = []
-        
+
         # Up-sampling
         if self.up_sampling:
             main_labels = [self.main_labels[ID] for ID in self.list_IDs]
@@ -138,125 +140,139 @@ class DataGenerator(Sequence):
                 idx = np.where(np.array(main_labels) == label)[0]
                 idx_labels.append(idx)
                 label_count.append(len(idx))
-             
-            idx_upsampled = np.zeros((0))    
+
+            idx_upsampled = np.zeros((0))
             for i in range(len(labels_unique)):
                 up_sample_factor = self.iter_per_epoch * max(label_count)/label_count[i]
-                idx_upsampled = np.concatenate((idx_upsampled, np.tile(idx_labels[i], int(up_sample_factor // 1))), 
+                idx_upsampled = np.concatenate((idx_upsampled, np.tile(idx_labels[i], int(up_sample_factor // 1))),
                                                axis = 0)
-                idx_upsampled = np.concatenate((idx_upsampled, np.random.choice(idx_labels[i], int(label_count[i] * up_sample_factor % 1), replace=True)),  
+                idx_upsampled = np.concatenate((idx_upsampled, np.random.choice(idx_labels[i], int(label_count[i] * up_sample_factor % 1), replace=True)),
                                                axis = 0)
             self.indexes = idx_upsampled
-            
+
         else:
             # No upsampling
             idx_base = np.arange(len(self.list_IDs))
-            idx_epoch = np.tile(idx_base, self.iter_per_epoch)   
+            idx_epoch = np.tile(idx_base, self.iter_per_epoch)
 
             self.indexes = idx_epoch
-        
+
         if self.shuffle == True:
             np.random.shuffle(self.indexes)
-   
-    
+
+
     def generate_data(self, list_IDs_temp):
         """Generates data containing batch_size averaged time series.
-        
+
         Args:
         -------
         list_IDs_temp: list
             list of label ids to load
-        
+
         return: batch of averaged time series
         """
         X_data = np.zeros((0, self.n_channels, self.n_timepoints))
         y_data = []
-        
-         # Generate data
+
         for i, ID in enumerate(list_IDs_temp):
             filename = self.filenames[ID]
             data_signal = self.load_signal(self.path_data, filename + '.npy')
             data_labels = self.load_labels(self.path_data, filename + '.csv')
-            
-            X, y = self.create_averaged_epoch(data_signal, 
+
+            X, y = self.create_averaged_epoch(data_signal,
                                               data_labels)
-            
+
             X_data = np.concatenate((X_data, X), axis=0)
-            
+
             # Replace labels based on label_dict:
             y = [self.transform_label(label) for label in y]
             y_data += y
-        
+
         if self.shuffle:
             idx = np.arange(len(y_data))
             np.random.shuffle(idx)
             X_data = X_data[idx, :, :]
             y_data = [y_data[i] for i in idx]
-        
+
         #y_data = self.label_binarize.fit_transform(np.array(y_data).astype(int))
         y_data = np.array([self.binarizer_dict[x] for x in y_data])
         return np.swapaxes(X_data,1,2), y_data
-    
+
 
     def create_averaged_epoch(self,
-                              data_signal, 
+                              data_signal,
                              data_labels):
-        """ 
+        """
         Function to create averages of self.n_average epochs.
         Will create one averaged epoch per found unique label from self.n_average random epochs.
-        
+
         Args:
-        
-        
+        --------
+        data_signal: numpy array
+            Data from one person as numpy array
+        data_labels: list
+            List of labels for all data from one person.
         """
         # Create new data collection:
         X_data = np.zeros((0, self.n_channels, self.n_timepoints))
         y_data = []
-        
+
         categories_found = list(set(data_labels))
-    
+        if self.subtract_baseline is None:
+            self.subtract_baseline = []
+        baseline_labels_found = list(set(categories_found) & set(self.subtract_baseline))
+        if len(baseline_labels_found) > 0:
+            idx_baseline = []
+            for cat in baseline_labels_found:
+                # Create baseline to subtract from all other epochs.
+                idx_baseline.extend(np.where(np.array(data_labels) == cat)[0])
+
+            baseline = np.mean(data_signal[idx_baseline,:,:], axis=0)
+        else:
+            baseline = 0
+
         idx_cat = []
-        for cat in categories_found:
+        for cat in list(set(categories_found) - set(self.subtract_baseline)):
             if cat not in self.ignore_labels:
                 idx = np.where(np.array(data_labels) == cat)[0]
                 idx_cat.append(idx)
-                
-                if len(idx) >= self.n_average:        
+
+                if len(idx) >= self.n_average:
                     select = np.random.choice(idx, self.n_average, replace=False)
-                else: 
+                else:
                     if self.warnings:
                         print("Found only", len(idx), " epochs and will take those!")
                     signal_averaged = np.mean(data_signal[idx,:,:], axis=0)
                     break
-                    
-                signal_averaged = np.mean(data_signal[select,:,:], axis=0)
+                # Average signal and subtract baseline (if any)
+                signal_averaged = np.mean(data_signal[select,:,:], axis=0) - baseline
                 X_data = np.concatenate([X_data, np.expand_dims(signal_averaged, axis=0)], axis=0)
                 y_data.append(cat)
             else:
                 pass
-    
+
         return X_data, y_data
 
 
-    def load_signal(self, 
+    def load_signal(self,
                     PATH,
                     filename):
         """Load EEG signal from one person.
-        
+
         Args:
         -------
         filename: str
             filename...
         PATH: str
             path name to file to load
-        
+
         return: loaded array
         """
         return np.load(os.path.join(PATH, filename))
 
-        
+
     def load_labels(self,
-                    PATH, 
+                    PATH,
                     filename):
         metadata = []
         filename = os.path.join(PATH, filename)
@@ -266,15 +282,15 @@ class DataGenerator(Sequence):
                 #if len(row) > 0:
                 metadata.append(row)
         readFile.close()
-        
+
         return metadata[0]
 
-     
+
     def transform_label(self,
                         label):
         if label in self.label_dict:
             label_new = self.label_dict[label]
         else:
             label_new = None
-            
+
         return label_new
