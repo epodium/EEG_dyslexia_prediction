@@ -69,10 +69,6 @@ def grad_cam(input_model, input_image, n_class, layer_name):
     # grads = normalize(grads)
     gradient_function = K.function([input_model.input], [conv_output, grads])
 
-    print(f"input_model.input {input_model.input}")
-    print(f"conv_output {conv_output}")
-    print(f"grads {grads}")
-
     output, grads_val = gradient_function(np.array([input_image]))
     output, grads_val = output[0, :], grads_val[0, :, :]
 
