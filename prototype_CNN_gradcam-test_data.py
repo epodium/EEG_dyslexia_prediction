@@ -152,8 +152,8 @@ def prepare_generator(indices, full_x_data, full_y_data):
     x_set = list()
     y_set = list()
     for idx in indices:
-        x_set.append(full_x_data[i])
-        y_set.append(full_y_data[i])
+        x_set.append(full_x_data[idx])
+        y_set.append(full_y_data[idx])
     x_set = np.array(x_set)
     x_set = x_set.reshape(np.concatenate((x_set.shape, [1])))
     y_set = np.array(y_set)
@@ -203,8 +203,9 @@ n_timepoints = x_data.shape[2]
 for i in range(4):
     fig = plt.figure()
     print(y[i])
-    plt.imshow(X[i].reshape((X[i].shape[0:2])))
+    plt.imshow(np.repeat(X[i].reshape((X[i].shape[0:2])), 16, axis = 0))
     fig.show()
+    
 
 
 # In[26]:
@@ -332,29 +333,36 @@ if do_train:
 # In[Define Visualize Grad_Cam]
 from matplotlib import pyplot as plt
 
-def visualize_gradcam(gradcam, network_input = None):
-    fig = plt.figure(figsize = (8, 6.4))
+def visualize_gradcam(gradcam, network_input = None, label = None):
+    fig = plt.figure(figsize = (16, 6.4))
     ticks = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]
     n_plots = 2
-    first_plot = 0
+    n_halves = 0
+    if label is not None:
+        plt.title(f'GradCAM, class {label}')
+        plt.axis('off')
     if network_input is not None:
-        n_plots = 3
-        first_plot = 1
-        fig.add_subplot(n_plots, 1, 1)
+        n_halves = 1
+        fig.add_subplot(2, 1, 1)
+        # fig.add_subplot(1, 2, 1)
         plt.axis('off')
         # plt.imshow(np.transpose(network_input))
-        plt.imshow(network_input.reshape(network_input.shape[0:2]))
+        # plt.imshow(network_input.reshape(network_input.shape[0:2]))
+        plt.imshow(np.repeat(network_input.reshape(network_input.shape[0:2]), 8, 0))
         plt.colorbar(ticks=ticks, orientation='horizontal')
-    # plt.title('GradCAM')
-    fig.add_subplot(n_plots, 1, first_plot +1)
+        
+    gradcam_floored = np.maximum(gradcam, 0)
+
+    # fig.add_subplot(n_halves + 1, n_plots, n_halves*n_plots +1)
+    fig.add_subplot(n_plots, n_halves + 1, n_halves*n_plots +1)
     plt.axis('off')
-    plt.imshow(np.maximum(gradcam, 0))
+    plt.imshow(np.repeat(gradcam_floored, 16, 0))
     plt.colorbar(ticks=ticks, orientation='horizontal')
-    fig.show()
     
-    fig.add_subplot(n_plots, 1, first_plot +2)
+    # fig.add_subplot(n_halves +1, n_plots, n_halves*n_plots +2)
+    fig.add_subplot(n_plots, n_halves +1, n_halves*n_plots +2)
     plt.axis('off')
-    plt.imshow(gradcam)
+    plt.imshow(np.repeat(gradcam, 16, 0))
     plt.colorbar(ticks=ticks, orientation='horizontal')
     fig.show()
 
@@ -365,17 +373,18 @@ from grad_cam import grad_cam
 input_model = model
 for i in range(4):
     input_image = x_set_val[i]
-    # layer_name = "conv2d_2"
-    layer_name = "average_pooling2d"
+    label = y[i]
+    layer_name = "conv2d_2"
+    # layer_name = "average_pooling2d"
     
     gradcam = grad_cam(input_model, input_image, 0, layer_name)
-    visualize_gradcam(gradcam, input_image)
+    visualize_gradcam(gradcam, input_image, label = label)
     gradcam = grad_cam(input_model, input_image, 1, layer_name)
-    visualize_gradcam(gradcam, input_image)
+    visualize_gradcam(gradcam, input_image, label = label)
     gradcam = grad_cam(input_model, input_image, 2, layer_name)
-    visualize_gradcam(gradcam, input_image)
+    visualize_gradcam(gradcam, input_image, label = label)
     gradcam = grad_cam(input_model, input_image, 3, layer_name)
-    visualize_gradcam(gradcam, input_image)
+    visualize_gradcam(gradcam, input_image, label = label)
 
 
 
