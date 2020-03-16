@@ -360,14 +360,22 @@ if do_train:
 # In[Define Visualize Grad_Cam]
 from matplotlib import pyplot as plt
 
-def visualize_gradcam(gradcam, network_input = None, label = None):
+def visualize_gradcam(
+        gradcam,
+        network_input = None,
+        label = None,
+        layer = None):
     fig = plt.figure(figsize = (16, 6.4))
+    plt.axis('off')
     ticks = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]
     n_plots = 2
     n_halves = 0
+    title = ""
     if label is not None:
-        plt.title(f'GradCAM, class {label}')
-        plt.axis('off')
+        title += f", class {label}"
+    if layer is not None:
+        title += f", layer {layer}"
+    plt.title(f'GradCAM{title}')
     if network_input is not None:
         n_halves = 1
         fig.add_subplot(2, 1, 1)
@@ -391,7 +399,7 @@ def visualize_gradcam(gradcam, network_input = None, label = None):
     plt.axis('off')
     plt.imshow(np.repeat(gradcam, 16, 0))
     plt.colorbar(ticks=ticks, orientation='horizontal')
-    fig.show()
+    # fig.show()
 
 # In[GradCam]
 
@@ -400,7 +408,7 @@ from grad_cam import grad_cam
 input_model = model
 for i in range(4):
     input_image = x_set_val[i]
-    label = y[i]
+    label = y_set_val[i]
     layer_name = "conv2d_2"
     # layer_name = "average_pooling2d"
     
@@ -476,6 +484,33 @@ compile_model(model)
 # In[Train]:
 if do_train:
     start_training(model, output_file, train_generator, val_generator)
+
+
+# In[GradCam]
+
+from grad_cam import grad_cam
+
+input_model = model
+for layer in input_model.layers:
+    idx_input = 0
+    input_image = x_set_val[idx_input]
+    label = y_set_val[idx_input]
+    # layer_name = "conv2d_1"
+    # layer_name = "leaky_re_lu_1"
+    # layer_name = "conv2d_3"
+    layer_name = layer.name
+    print(layer_name)
+    
+    gradcam = grad_cam(input_model, input_image, 0, layer_name)
+    visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
+    gradcam = grad_cam(input_model, input_image, 1, layer_name)
+    visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
+    gradcam = grad_cam(input_model, input_image, 2, layer_name)
+    visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
+    gradcam = grad_cam(input_model, input_image, 3, layer_name)
+    visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
+
+
 
 
 # In[Eli5 visualization (low level)]:
