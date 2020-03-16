@@ -44,11 +44,13 @@ from config import PATH_CODE, PATH_DATA
 
 # In[3]:
 
+# n_samples = 200
+n_samples = 1000
 
 PATH_DATA_processed = os.path.join(PATH_DATA, "test_data")
 
-x_data = np.load(os.path.join(PATH_DATA_processed, "x_data.npy"))
-y_data = np.load(os.path.join(PATH_DATA_processed, "y_data.npy"))
+x_data = np.load(os.path.join(PATH_DATA_processed, f"x_data_{n_samples}.npy"))
+y_data = np.load(os.path.join(PATH_DATA_processed, f"y_data_{n_samples}.npy"))
 
 
 # In[6]:
@@ -96,6 +98,17 @@ for label in label_collection:
     ids_train.extend(list(trainIDs))
     ids_val.extend(list(valIDs))
     ids_test.extend(list(testIDs))
+
+
+# In[Randomize ids]:
+
+# ids_train = np.array(ids_train)[np.random.permutation(len(ids_train))]
+# ids_val = np.array(ids_train)[np.random.permutation(len(ids_val))]
+# ids_test = np.array(ids_train)[np.random.permutation(len(ids_test))]
+
+np.random.shuffle(ids_train)
+np.random.shuffle(ids_val)
+np.random.shuffle(ids_test)
 
 
 # In[31]:
@@ -268,8 +281,14 @@ def compile_model(model):
 
 # In[Clear memory]
 tf.keras.backend.clear_session()
-del model
+try:
+    del model
+except:
+    pass
 
+# In[Define model to use]
+# reduce_on_time = True
+reduce_on_time = False
 
 # In[40]:
 
@@ -289,11 +308,16 @@ model.add(layers.Conv2D(filters=64, kernel_size=(1, 10))) #, activation='relu'))
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
 
-model.add(layers.Conv2D(filters=32, kernel_size=(1, 5))) #, activation='relu'))
-model.add(layers.BatchNormalization())
-model.add(layers.LeakyReLU())
-model.add(layers.AveragePooling2D(pool_size=(1, 46))) # Reducing dimensionality on time dimension
-#model.add(layers.GlobalAveragePooling1D(data_format=None))
+if reduce_on_time:
+    model.add(layers.Conv2D(filters=32, kernel_size=(1, 5))) #, activation='relu'))
+    model.add(layers.BatchNormalization())
+    model.add(layers.LeakyReLU())
+    model.add(layers.AveragePooling2D(pool_size=(1, 46))) # Reducing dimensionality on time dimension
+else:
+    model.add(layers.Conv2D(filters=4, kernel_size=(1, 1))) # Reducing dimensionality on filters dimension
+    model.add(layers.BatchNormalization())
+    model.add(layers.LeakyReLU())
+    model.add(layers.AveragePooling2D(pool_size=(1, 4))) 
 
 model.add(layers.Flatten())
 model.add(layers.Dense(100, activation='relu'))
@@ -310,7 +334,10 @@ model.summary()
 # In[Output file]:
 
 # Save best model and include early stopping
-output_filename = 'Test_data_classifier_avg_pool-100.hdf5'
+if reduce_on_time:
+    output_filename = 'Test_data_classifier_avg_pool-100.hdf5'
+else:
+    output_filename = 'Test_data_classifier_avg_pool-4_conv-1-4.hdf5'
 output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
 
 
@@ -387,52 +414,42 @@ for i in range(4):
     visualize_gradcam(gradcam, input_image, label = label)
 
 
-
-
-# In[81]:
-
-
-model.get_weights()
-
-
 # In[Clear memory]
 tf.keras.backend.clear_session()
 del model
 
 
-# In[Network reduced dimensionality with Conv 1x1]
+# In[Model based on assafExplainableDeep2019]:
 
-# Simple CNN model
 
 model = tf.keras.Sequential()
-#model.add(layers.Conv1D(filters=32, kernel_size=20, activation='relu', input_shape=(n_timesteps,n_features)))
-model.add(layers.Conv2D(filters=32, kernel_size=(1, 20), input_shape=(input_shape)))
+# k timepoints * 1 channel
+model.add(layers.Conv2D(filters=32, kernel_size = (1, 20), input_shape=input_shape))
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
 
-model.add(layers.Conv2D(filters=64, kernel_size=(1, 10))) #, activation='relu'))
+# 1 * 1 Convolution to reduce feature maps
+model.add(layers.Conv2D(filters=1, kernel_size=(1, 1)))
+model.add(layers.BatchNormalization())
+model.add(layers.LeakyReLU())
+# End of first stage
+
+# 1D Convolution, k*#channels
+model.add(layers.Conv2D(filters=32, kernel_size = (input_shape[0], 10)))
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
 
-model.add(layers.Conv2D(filters=32, kernel_size=(1, 5))) #, activation='relu'))
-model.add(layers.BatchNormalization())
-model.add(layers.LeakyReLU())
-
+# End of second stage
 model.add(layers.Conv2D(filters=4, kernel_size=(1, 1))) # Reducing dimensionality on filters dimension
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
-
 model.add(layers.AveragePooling2D(pool_size=(1, 4))) 
-#model.add(layers.GlobalAveragePooling1D(data_format=None))
+
 
 model.add(layers.Flatten())
 model.add(layers.Dense(100, activation='relu'))
 model.add(layers.Dropout(0.5))
 model.add(layers.Dense(n_outputs, activation='softmax'))
-
-
-# In[39]:
-
 
 model.summary()
 
@@ -440,7 +457,8 @@ model.summary()
 # In[Output file]:
 
 # Save best model and include early stopping
-output_filename = 'Test_data_classifier_avg_pool-4_conv-1-4.hdf5'
+
+output_filename = 'Test_data_assaf2019_avg_pool-4_conv-1-4.hdf5'
 output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
 
 
@@ -455,54 +473,9 @@ if do_load:
 compile_model(model)
 
 
-
 # In[Train]:
-
 if do_train:
     start_training(model, output_file, train_generator, val_generator)
-
-# In[Define Visualize Grad_Cam]
-from matplotlib import pyplot as plt
-
-def visualize_gradcam(gradcam):
-    plt.figure(figsize=(15, 10))
-    plt.title('GradCAM')
-    plt.axis('off')
-    #plt.imshow(np.transpose(network_input))
-    im = plt.imshow(np.transpose(gradcam), cmap='jet', alpha=0.5)
-    im.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05))
-    plt.show()
-
-
-# In[GradCam]
-
-from grad_cam import grad_cam
-
-input_model = model
-i = 3
-input_image = X[i]
-n_class = np.argmax(model.predict(np.array([X[i]])))
-# n_class = np.argmin(model.predict(np.array([X[i]])))
-# layer_name = "conv2d_3"
-layer_name = "average_pooling2d"
-
-gradcam = grad_cam(input_model, input_image, n_class, layer_name)
-
-
-# In[Visualize]
-visualize_gradcam(gradcam.transpose())
-
-
-# In[Eli5 visualization (high level)]:
-import eli5
-from IPython.display import display
-
-
-expl = eli5.explain_prediction(model, input_image)
-heatmap = expl.targets[0].heatmap
-heatmap_im = eli5.formatters.image.heatmap_to_image(heatmap)
-display(heatmap_im)
-
 
 
 # In[Eli5 visualization (low level)]:
