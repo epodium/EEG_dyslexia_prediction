@@ -161,7 +161,7 @@ for label in y_data:
 
 from fake_dataset_generator import FakeDataGenerator
 
-def prepare_generator(indices, full_x_data, full_y_data):
+def prepare_sets(indices, full_x_data, full_y_data):
     x_set = list()
     y_set = list()
     for idx in indices:
@@ -172,8 +172,10 @@ def prepare_generator(indices, full_x_data, full_y_data):
     y_set = np.array(y_set)
     return x_set, y_set
 
-x_set_train, y_set_train = prepare_generator(ids_train, x_data, binary_y_data)
-x_set_val, y_set_val = prepare_generator(ids_val, x_data, binary_y_data)
+x_set_train, y_set_train = prepare_sets(ids_train, x_data, binary_y_data)
+x_set_val, y_set_val = prepare_sets(ids_val, x_data, binary_y_data)
+x_set_test, y_set_test = prepare_sets(ids_test, x_data, binary_y_data)
+
 train_generator = FakeDataGenerator(x_set_train, y_set_train)
 val_generator = FakeDataGenerator(x_set_val, y_set_val)
 
@@ -492,7 +494,7 @@ from grad_cam import grad_cam
 
 input_model = model
 for layer in input_model.layers:
-    idx_input = 0
+    idx_input = 1
     input_image = x_set_val[idx_input]
     label = y_set_val[idx_input]
     # layer_name = "conv2d_1"
@@ -509,6 +511,82 @@ for layer in input_model.layers:
     visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
     gradcam = grad_cam(input_model, input_image, 3, layer_name)
     visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
+
+
+
+# In[Define confusion matrix]:
+
+from sklearn import metrics
+
+def plot_confusion_matrix(y_true, y_pred, classes,
+                          normalize=False,
+                          title=None,
+                          cmap=plt.cm.Blues):
+    """
+    This function prints and plots the confusion matrix.
+    Normalization can be applied by setting `normalize=True`.
+    """
+    # from sklearn.utils.multiclass import unique_labels
+    
+    if not title:
+        if normalize:
+            title = 'Normalized confusion matrix'
+        else:
+            title = 'Confusion matrix, without normalization'
+
+    # Compute confusion matrix
+    cm = metrics.confusion_matrix(y_true, y_pred)
+    ## Only use the labels that appear in the data
+    #classes = classes[unique_labels(y_true, y_pred)]
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+        print("Normalized confusion matrix")
+    else:
+        print('Confusion matrix, without normalization')
+
+    print(cm)
+
+    fig, ax = plt.subplots()
+    im = ax.imshow(cm, interpolation='nearest', cmap=cmap)
+    ax.figure.colorbar(im, ax=ax)
+    # We want to show all ticks...
+    ax.set(xticks=np.arange(cm.shape[1]),
+           yticks=np.arange(cm.shape[0]),
+           # ... and label them with the respective list entries
+           xticklabels=classes, yticklabels=classes,
+           title=title,
+           ylabel='True label',
+           xlabel='Predicted label')
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
+             rotation_mode="anchor")
+
+    # Loop over data dimensions and create text annotations.
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            ax.text(j, i, format(cm[i, j], fmt),
+                    ha="center", va="center",
+                    color="white" if cm[i, j] > thresh else "black")
+    fig.tight_layout()
+    return ax
+
+
+# In[Plot confusion matrix]
+
+labels = list(binarizer_dict.keys())
+
+true_labels = y_set_val
+predicted_labels = model.predict(x_set_test)
+
+
+plot_confusion_matrix(np.argmax(true_labels, axis=1), 
+                      np.argmax(predicted_labels, axis=1), 
+                      classes=labels, normalize=True,
+                      title='Normalized confusion matrix')
+
 
 
 
