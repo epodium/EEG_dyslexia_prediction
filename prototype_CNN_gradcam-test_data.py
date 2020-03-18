@@ -468,7 +468,74 @@ model.summary()
 
 # Save best model and include early stopping
 
-output_filename = 'Test_data_assaf2019_avg_pool-4_conv-1-4.hdf5'
+output_filename = f'Test_data_assaf2019_avg_pool-4_conv-1-4.hdf5'
+output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
+
+
+# In[Load model]:
+
+if do_load:
+    load_model(model, output_file)
+
+
+# In[Compile]:
+
+compile_model(model)
+
+
+# In[Train]:
+if do_train:
+    start_training(model, output_file, train_generator, val_generator)
+
+# In[Channels version]
+
+"""Model from Assaf 2019 modified to give results about channels"""
+
+# In[Clear memory]
+tf.keras.backend.clear_session()
+del model
+
+
+# In[Model based on assafExplainableDeep2019, ]:
+
+
+model = tf.keras.Sequential()
+# k timepoints * 1 channel
+model.add(layers.Conv2D(filters=32, kernel_size = (1, 20), input_shape=input_shape))
+model.add(layers.BatchNormalization())
+model.add(layers.LeakyReLU())
+
+# 1 * 1 Convolution to reduce feature maps
+model.add(layers.Conv2D(filters=1, kernel_size=(1, 1)))
+model.add(layers.BatchNormalization())
+model.add(layers.LeakyReLU())
+# End of first stage
+
+# 1D Convolution, k*#channels
+model.add(layers.Conv2D(filters=32, kernel_size = (input_shape[0], 10)))
+model.add(layers.BatchNormalization())
+model.add(layers.LeakyReLU())
+
+# End of second stage
+model.add(layers.Conv2D(filters=4, kernel_size=(1, 1))) # Reducing dimensionality on filters dimension
+model.add(layers.BatchNormalization())
+model.add(layers.LeakyReLU())
+model.add(layers.AveragePooling2D(pool_size=(1, 4))) 
+
+
+model.add(layers.Flatten())
+model.add(layers.Dense(100, activation='relu'))
+model.add(layers.Dropout(0.5))
+model.add(layers.Dense(n_outputs, activation='softmax'))
+
+model.summary()
+
+
+# In[Output file]:
+
+# Save best model and include early stopping
+
+output_filename = f'Test_data_assaf2019_avg_pool-4_conv-1-4.hdf5'
 output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
 
 
@@ -493,25 +560,31 @@ if do_train:
 from grad_cam import grad_cam
 
 input_model = model
-for layer in input_model.layers:
+for layer in input_model.layers[:-4]:
     idx_input = 1
     input_image = x_set_val[idx_input]
-    label = y_set_val[idx_input]
+    true_label = y_set_val[idx_input]
     # layer_name = "conv2d_1"
     # layer_name = "leaky_re_lu_1"
     # layer_name = "conv2d_3"
     layer_name = layer.name
     print(layer_name)
-    
-    gradcam = grad_cam(input_model, input_image, 0, layer_name)
-    visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
-    gradcam = grad_cam(input_model, input_image, 1, layer_name)
-    visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
-    gradcam = grad_cam(input_model, input_image, 2, layer_name)
-    visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
-    gradcam = grad_cam(input_model, input_image, 3, layer_name)
-    visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
 
+    grad_cam_label = np.argmax(model.predict([[input_image]]))
+    print(f"Predicted label: {binarizer_dict[str(grad_cam_label)]}, True label: {true_label}")
+    
+    gradcam = grad_cam(input_model, input_image, grad_cam_label, layer_name)
+    visualize_gradcam(
+        gradcam, input_image, label = true_label, layer = layer_name)
+    
+    # gradcam = grad_cam(input_model, input_image, 0, layer_name)
+    # visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
+    # gradcam = grad_cam(input_model, input_image, 1, layer_name)
+    # visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
+    # gradcam = grad_cam(input_model, input_image, 2, layer_name)
+    # visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
+    # gradcam = grad_cam(input_model, input_image, 3, layer_name)
+    # visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
 
 
 # In[Define confusion matrix]:
@@ -578,7 +651,7 @@ def plot_confusion_matrix(y_true, y_pred, classes,
 
 labels = list(binarizer_dict.keys())
 
-true_labels = y_set_val
+true_labels = y_set_test
 predicted_labels = model.predict(x_set_test)
 
 
