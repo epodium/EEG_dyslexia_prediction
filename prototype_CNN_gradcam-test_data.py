@@ -293,13 +293,15 @@ except:
 # reduce_on_time = True
 reduce_on_time = False
 
+# In[Define shape]
+input_shape = X.shape[1:]
+n_outputs = len(label_collection)
+print(f"Input shape: {input_shape}; n_outputs: {n_outputs}")
+
 # In[40]:
 
 
 # Simple CNN model
-input_shape = X.shape[1:]
-n_outputs = len(label_collection)
-print(f"Input shape: {input_shape}; n_outputs: {n_outputs}")
 
 model = tf.keras.Sequential()
 #model.add(layers.Conv1D(filters=32, kernel_size=20, activation='relu', input_shape=(n_timesteps,n_features)))
@@ -395,12 +397,14 @@ def visualize_gradcam(
     fig.add_subplot(n_plots, n_halves + 1, n_halves*n_plots +1)
     plt.axis('off')
     plt.imshow(np.repeat(gradcam_floored, 16, 0))
+    # plt.imshow(gradcam_floored)
     plt.colorbar(ticks=ticks, orientation='horizontal')
     
     # fig.add_subplot(n_halves +1, n_plots, n_halves*n_plots +2)
     fig.add_subplot(n_plots, n_halves +1, n_halves*n_plots +2)
     plt.axis('off')
     plt.imshow(np.repeat(gradcam, 16, 0))
+    # plt.imshow(gradcam)
     plt.colorbar(ticks=ticks, orientation='horizontal')
     # fig.show()
 
