@@ -238,7 +238,8 @@ tf.compat.v1.disable_eager_execution() # TODO Delete, substitute gradients for G
 
 # In[Define model functions]
 
-def start_training(model, output_file, train_generator, val_generator):
+def start_training(
+        model, output_file, train_generator, val_generator, epochs = 50):
     checkpointer = ModelCheckpoint(
         filepath = output_file, 
         monitor='val_accuracy', 
@@ -254,7 +255,7 @@ def start_training(model, output_file, train_generator, val_generator):
     model.fit(
         x=train_generator, 
         validation_data=val_generator,
-        epochs=50,
+        epochs=epochs,
         callbacks = [
             checkpointer,
             earlystopper,
@@ -493,7 +494,10 @@ if do_train:
 
 # In[Clear memory]
 tf.keras.backend.clear_session()
-del model
+try:
+    del model
+except:
+    pass
 
 
 # In[Model based on assafExplainableDeep2019, ]:
@@ -512,7 +516,7 @@ model.add(layers.LeakyReLU())
 # End of first stage
 
 # 1D Convolution, k*#channels
-model.add(layers.Conv2D(filters=32, kernel_size = (input_shape[0], 10)))
+model.add(layers.Conv2D(filters=32, kernel_size = (1, 381)))
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
 
@@ -520,11 +524,11 @@ model.add(layers.LeakyReLU())
 model.add(layers.Conv2D(filters=4, kernel_size=(1, 1))) # Reducing dimensionality on filters dimension
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
-model.add(layers.AveragePooling2D(pool_size=(1, 4))) 
+model.add(layers.AveragePooling2D(pool_size=(1, 1))) 
 
 
 model.add(layers.Flatten())
-model.add(layers.Dense(100, activation='relu'))
+model.add(layers.Dense(20, activation='relu'))
 model.add(layers.Dropout(0.5))
 model.add(layers.Dense(n_outputs, activation='softmax'))
 
@@ -535,7 +539,7 @@ model.summary()
 
 # Save best model and include early stopping
 
-output_filename = f'Test_data_assaf2019_avg_pool-4_conv-1-4.hdf5'
+output_filename = f'Test_data_assaf2019_avg_pool-4_conv-1-4-channels.hdf5'
 output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
 
 
@@ -552,7 +556,8 @@ compile_model(model)
 
 # In[Train]:
 if do_train:
-    start_training(model, output_file, train_generator, val_generator)
+    start_training(
+        model, output_file, train_generator, val_generator, epochs = 200)
 
 
 # In[GradCam]
@@ -560,8 +565,10 @@ if do_train:
 from grad_cam import grad_cam
 
 input_model = model
-for layer in input_model.layers[:-4]:
-    idx_input = 1
+# for layer in input_model.layers[:-4]:
+#     idx_input = 5
+for idx_input in [5, 0, 1, 4]:
+    layer = input_model.layers[-5]
     input_image = x_set_val[idx_input]
     true_label = y_set_val[idx_input]
     # layer_name = "conv2d_1"
