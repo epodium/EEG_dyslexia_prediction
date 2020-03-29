@@ -26,6 +26,7 @@ import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from visualization_utils import visualize_gradcam
 sys.path.insert(0, os.path.dirname(os.getcwd()))
 
 #import mne
@@ -213,14 +214,45 @@ n_channels = x_data.shape[1]
 n_timepoints = x_data.shape[2]
 
 
+# In[Define visualize time series]:
+
+import matplotlib
+
+def visualize_timeseries(X_ts, title = None):
+    n_ch = X_ts.shape[0]
+    
+    cmap = matplotlib.cm.get_cmap('inferno') #'Spectral')
+    bg_cmap = matplotlib.cm.get_cmap('seismic')
+    plt.style.use('ggplot')
+    # plt.figure(figsize=(10,(1+0.7 *n_ch)))
+    plt.figure(figsize=(400,(1+0.7 *n_ch*2)))
+    for i in range(n_ch):
+        # plt.plot((X_ts[i,:] - i), color=cmap(i/n_ch))
+        plt.plot((X_ts[i,:] - i*2), color=cmap(i/n_ch))
+        n_points = len(X_ts[i])
+        for j in range(n_points):
+            y_base = -i*2
+            margin = 1/ (n_points*2)
+            plt.axhspan(
+                y_base-1, y_base+1,
+                # TODO Doesn't follow the coordinates of the data plot
+                xmin = j/n_points - margin,
+                xmax = j/n_points + margin,
+                color=bg_cmap(X_ts[i,j,0]+0.5), alpha = 0.5)
+    if title:
+        plt.title(title)
+    plt.yticks(-np.arange(n_ch)*2, ['channel ' + str(i) for i in range(n_ch)])
+    plt.xlabel('time')
+
+
 # In[ ]:
 
 for i in range(4):
     fig = plt.figure()
     print(y[i])
-    plt.imshow(np.repeat(X[i].reshape((X[i].shape[0:2])), 16, axis = 0))
-    fig.show()
+    # plt.imshow(np.repeat(X[i].reshape((X[i].shape[0:2])), 16, axis = 0))
     
+    visualize_timeseries(X[i])
 
 
 # In[26]:
@@ -362,51 +394,7 @@ compile_model(model)
 if do_train:
     start_training(model, output_file, train_generator, val_generator)
 
-# In[Define Visualize Grad_Cam]
-from matplotlib import pyplot as plt
 
-def visualize_gradcam(
-        gradcam,
-        network_input = None,
-        label = None,
-        layer = None):
-    fig = plt.figure(figsize = (16, 6.4))
-    plt.axis('off')
-    ticks = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]
-    n_plots = 2
-    n_halves = 0
-    title = ""
-    if label is not None:
-        title += f", class {label}"
-    if layer is not None:
-        title += f", layer {layer}"
-    plt.title(f'GradCAM{title}')
-    if network_input is not None:
-        n_halves = 1
-        fig.add_subplot(2, 1, 1)
-        # fig.add_subplot(1, 2, 1)
-        plt.axis('off')
-        # plt.imshow(np.transpose(network_input))
-        # plt.imshow(network_input.reshape(network_input.shape[0:2]))
-        plt.imshow(np.repeat(network_input.reshape(network_input.shape[0:2]), 8, 0))
-        plt.colorbar(ticks=ticks, orientation='horizontal')
-        
-    gradcam_floored = np.maximum(gradcam, 0)
-
-    # fig.add_subplot(n_halves + 1, n_plots, n_halves*n_plots +1)
-    fig.add_subplot(n_plots, n_halves + 1, n_halves*n_plots +1)
-    plt.axis('off')
-    plt.imshow(np.repeat(gradcam_floored, 16, 0))
-    # plt.imshow(gradcam_floored)
-    plt.colorbar(ticks=ticks, orientation='horizontal')
-    
-    # fig.add_subplot(n_halves +1, n_plots, n_halves*n_plots +2)
-    fig.add_subplot(n_plots, n_halves +1, n_halves*n_plots +2)
-    plt.axis('off')
-    plt.imshow(np.repeat(gradcam, 16, 0))
-    # plt.imshow(gradcam)
-    plt.colorbar(ticks=ticks, orientation='horizontal')
-    # fig.show()
 
 # In[GradCam]
 
