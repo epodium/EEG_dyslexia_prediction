@@ -222,7 +222,7 @@ for i in range(4):
     print(y[i])
     # plt.imshow(np.repeat(X[i].reshape((X[i].shape[0:2])), 16, axis = 0))
     
-    visualize_timeseries(X[i])
+    visualize_timeseries(X[i], str(y[i]))
 
 
 # In[26]:
