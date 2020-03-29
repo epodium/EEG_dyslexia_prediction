@@ -26,8 +26,9 @@ import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-from visualization_utils import visualize_gradcam
+from visualization_utils import visualize_gradcam, visualize_timeseries
 sys.path.insert(0, os.path.dirname(os.getcwd()))
+
 
 #import mne
 #%matplotlib inline
@@ -212,37 +213,6 @@ for i in range(min(10, len(y))):
 
 n_channels = x_data.shape[1]
 n_timepoints = x_data.shape[2]
-
-
-# In[Define visualize time series]:
-
-import matplotlib
-
-def visualize_timeseries(X_ts, title = None):
-    n_ch = X_ts.shape[0]
-    
-    cmap = matplotlib.cm.get_cmap('inferno') #'Spectral')
-    bg_cmap = matplotlib.cm.get_cmap('seismic')
-    plt.style.use('ggplot')
-    # plt.figure(figsize=(10,(1+0.7 *n_ch)))
-    plt.figure(figsize=(400,(1+0.7 *n_ch*2)))
-    for i in range(n_ch):
-        # plt.plot((X_ts[i,:] - i), color=cmap(i/n_ch))
-        plt.plot((X_ts[i,:] - i*2), color=cmap(i/n_ch))
-        n_points = len(X_ts[i])
-        for j in range(n_points):
-            y_base = -i*2
-            margin = 1/ (n_points*2)
-            plt.axhspan(
-                y_base-1, y_base+1,
-                # TODO Doesn't follow the coordinates of the data plot
-                xmin = j/n_points - margin,
-                xmax = j/n_points + margin,
-                color=bg_cmap(X_ts[i,j,0]+0.5), alpha = 0.5)
-    if title:
-        plt.title(title)
-    plt.yticks(-np.arange(n_ch)*2, ['channel ' + str(i) for i in range(n_ch)])
-    plt.xlabel('time')
 
 
 # In[ ]:

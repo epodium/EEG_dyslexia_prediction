@@ -11,8 +11,6 @@ import matplotlib
 from matplotlib import pyplot as plt
 
 
-# In[Define Visualize Grad_Cam]
-
 def visualize_gradcam(
         gradcam,
         network_input = None,
@@ -56,3 +54,27 @@ def visualize_gradcam(
     plt.colorbar(ticks=ticks, orientation='horizontal')
     # fig.show()
 
+
+def visualize_timeseries(X_ts, title = None):
+    n_ch, n_points = X_ts.shape[0:2]
+    
+    bg_cmap = matplotlib.cm.get_cmap('seismic')
+    bg_colors = bg_cmap(X_ts/2 +0.5)
+    plt.style.use('ggplot')
+    plt.figure(figsize=(20,(1+0.7 *n_ch*2)))
+    x_bar = range(n_points)
+    for i in range(n_ch):
+        plt.bar(
+            x = x_bar,
+            height = 2,
+            width = 1,
+            bottom = -2*i-1,
+            color = bg_colors[i,:,0],
+            alpha = 0.5,
+            edgecolor = None)
+        plt.plot((X_ts[i,:] - i*2), color="black")
+        
+    if title:
+        plt.title(title)
+    plt.yticks(-np.arange(n_ch)*2, ['channel ' + str(i) for i in range(n_ch)])
+    plt.xlabel('time')
