@@ -15,8 +15,8 @@ def visualize_gradcam(
         network_input = None,
         label = None,
         layer = None):
-    fig = plt.figure(figsize = (16, 6.4))
-    plt.axis('off')
+    fig, ax = plt.subplots(figsize = (16, 6.4))
+    ax.set_axis_off()
     n_rows = 1
     n_cols = 2
     title = ""
@@ -29,16 +29,13 @@ def visualize_gradcam(
         n_rows += 1
         ax = fig.add_subplot(n_rows, 1, 1)
         visualize_timeseries(network_input, ax = ax)
-        plt.axis('off')
         
     gradcam_floored = np.maximum(gradcam, 0)
 
     ax = fig.add_subplot(n_rows, n_cols, n_rows*(n_cols-1) +1)
-    plt.axis('off')
     superpose_gradcam(gradcam_floored, network_input, ax = ax)
     
     ax = fig.add_subplot(n_rows, n_cols, n_rows*(n_cols-1) +2)
-    plt.axis('off')
     superpose_gradcam(gradcam, network_input, ax = ax)
 
 
