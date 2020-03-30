@@ -26,7 +26,7 @@ import os
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
-from visualization_utils import visualize_gradcam, visualize_timeseries
+from visualization_utils import visualize_gradcam, visualize_timeseries, superpose_gradcam
 sys.path.insert(0, os.path.dirname(os.getcwd()))
 
 
@@ -520,6 +520,31 @@ compile_model(model)
 if do_train:
     start_training(
         model, output_file, train_generator, val_generator, epochs = 200)
+
+
+# In[Define superpose gradcam]:
+
+
+
+
+
+
+layer = input_model.layers[-5]
+idx_input = 5
+network_input = x_set_val[idx_input]
+true_label = y_set_val[idx_input]
+layer_name = layer.name
+print(layer_name)
+
+grad_cam_label = np.argmax(model.predict([[input_image]]))
+print(f"Predicted label: {binarizer_dict[str(grad_cam_label)]}, True label: {true_label}")
+
+gradcam = grad_cam(input_model, input_image, grad_cam_label, layer_name)
+superpose_gradcam(gradcam, network_input)
+
+
+
+
 
 
 # In[GradCam]
