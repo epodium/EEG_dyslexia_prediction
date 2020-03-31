@@ -14,6 +14,7 @@ def visualize_gradcam(
         gradcam,
         network_input = None,
         label = None,
+        predicted_label = None,
         layer = None):
     fig, ax = plt.subplots(figsize = (16, 6.4))
     ax.set_axis_off()
@@ -22,6 +23,8 @@ def visualize_gradcam(
     title = ""
     if label is not None:
         title += f", class {label}"
+    if predicted_label is not None:
+        title += f", predicted class {predicted_label}"
     if layer is not None:
         title += f", layer {layer}"
     plt.title(f'GradCAM{title}')
@@ -71,7 +74,8 @@ def superpose_gradcam(
         gradcam,
         network_input,
         ax = None):
-    n_ch, w_input = network_input.shape[0:2]
+    n_ch_input, w_input = network_input.shape[0:2]
+    n_ch_gradcam, w_gradcam = gradcam.shape[0:2]
     
     bg_cmap = cm.get_cmap('inferno')
     norm = cm.colors.Normalize(vmin = np.min(gradcam), vmax = np.max(gradcam))
@@ -80,24 +84,26 @@ def superpose_gradcam(
     
     if ax is None:
         plt.style.use('ggplot')
-        fig, ax = plt.subplots(figsize=(20,(1+0.7 *n_ch*2)))
+        fig, ax = plt.subplots(figsize=(20,(1+0.7 *n_ch_input*2)))
     
-    w_gradcam = gradcam.shape[1]
     step = (w_input-1)/(w_gradcam-1) #TODO Is this the correct way to approach this?
     gradcam_bar = np.arange(w_gradcam) * step
-    for i in range(n_ch):
+    for i in range(n_ch_input):
+        ax.plot((network_input[i, :] - i*2), color="black")
+    scale = n_ch_input/n_ch_gradcam
+    for i in range(n_ch_gradcam):
         ax.bar(
             x = gradcam_bar,
-            height = 2,
+            height = 2*scale,
             width = step,
-            bottom = -2*i-1,
+            bottom = -2*i*scale + (1 - 2*scale),
             color = bg_colors[i,:],
             alpha = alpha,
             edgecolor = None)
-        ax.plot((network_input[i, :] - i*2), color="black")
         
-    ax.set_yticks(-np.arange(n_ch)*2)
-    ax.set_yticklabels(['channel ' + str(i) for i in range(n_ch)])
+        
+    ax.set_yticks(-np.arange(n_ch_input)*2)
+    ax.set_yticklabels(['channel ' + str(i) for i in range(n_ch_input)])
     ax.set_xlabel('time')
     
     ax.figure.colorbar(
