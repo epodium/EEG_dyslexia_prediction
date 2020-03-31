@@ -96,7 +96,7 @@ def superpose_gradcam(
             x = gradcam_bar,
             height = 2*scale,
             width = step,
-            bottom = -2*i*scale + (1 - 2*scale),
+            bottom = 1-2*scale*(1+i),
             color = bg_colors[i,:],
             alpha = alpha,
             edgecolor = None)
