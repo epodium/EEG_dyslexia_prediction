@@ -86,8 +86,12 @@ def superpose_gradcam(
         plt.style.use('ggplot')
         fig, ax = plt.subplots(figsize=(20,(1+0.7 *n_ch_input*2)))
     
-    step = (w_input-1)/(w_gradcam-1) #TODO Is this the correct way to approach this?
-    gradcam_bar = np.arange(w_gradcam) * step
+    if w_gradcam > 1:
+        step = (w_input-1)/(w_gradcam-1) #TODO Is this the correct way to approach this?
+        gradcam_bar = np.arange(w_gradcam) * step
+    else:
+        step = w_input
+        gradcam_bar = w_input/2
     for i in range(n_ch_input):
         ax.plot((network_input[i, :] - i*2), color="black")
     scale = n_ch_input/n_ch_gradcam
