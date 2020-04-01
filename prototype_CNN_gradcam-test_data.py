@@ -547,15 +547,6 @@ gradcam = grad_cam(input_model, network_input, grad_cam_label, layer_name)
 superpose_gradcam(gradcam, network_input)
 
 
-# In[Test scaling]:
-
-n_ch_input = 10
-for n_ch_gradcam in [10, 5, 2, 1]:
-    scale = n_ch_input/n_ch_gradcam
-    # print([-2*i*scale + (1 - 2*scale) for i in range(n_ch_gradcam)])
-    print([1-2*scale*(1+i) for i in range(n_ch_gradcam)])
-
-
 # In[GradCam]
 
 from grad_cam import grad_cam
