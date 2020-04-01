@@ -371,20 +371,29 @@ if do_train:
 from grad_cam import grad_cam
 
 input_model = model
-for i in range(4):
-    input_image = x_set_val[i]
-    label = y_set_val[i]
-    layer_name = "conv2d_2"
-    # layer_name = "average_pooling2d"
+for idx_input in [5, 0, 1, 4]:
+    layer = input_model.layers[-5]
+    input_image = x_set_val[idx_input]
+    true_label = y_set_val[idx_input]
+    # layer_name = "conv2d_1"
+    # layer_name = "leaky_re_lu_1"
+    # layer_name = "conv2d_3"
+    layer_name = layer.name
+    print(layer_name)
+
+    predicted_label = binarizer_dict[
+        str(np.argmax(
+            model.predict([[input_image]])))]
+    print(f"Predicted label: {predicted_label}, True label: {true_label}")
     
-    gradcam = grad_cam(input_model, input_image, 0, layer_name)
-    visualize_gradcam(gradcam, input_image, label = label)
-    gradcam = grad_cam(input_model, input_image, 1, layer_name)
-    visualize_gradcam(gradcam, input_image, label = label)
-    gradcam = grad_cam(input_model, input_image, 2, layer_name)
-    visualize_gradcam(gradcam, input_image, label = label)
-    gradcam = grad_cam(input_model, input_image, 3, layer_name)
-    visualize_gradcam(gradcam, input_image, label = label)
+    for i_class in range(4):
+        gradcam = grad_cam(input_model, input_image, i_class, layer_name)
+        visualize_gradcam(
+            gradcam,
+            input_image,
+            label = true_label,
+            predicted_label = predicted_label,
+            layer = layer_name)
 
 
 # In[Clear memory]
@@ -522,12 +531,7 @@ if do_train:
         model, output_file, train_generator, val_generator, epochs = 200)
 
 
-# In[Define superpose gradcam]:
-
-
-
-
-
+# In[Test superpose gradcam]:
 
 layer = input_model.layers[-5]
 idx_input = 0
@@ -543,8 +547,13 @@ gradcam = grad_cam(input_model, network_input, grad_cam_label, layer_name)
 superpose_gradcam(gradcam, network_input)
 
 
+# In[Test scaling]:
 
-
+n_ch_input = 10
+for n_ch_gradcam in [10, 5, 2, 1]:
+    scale = n_ch_input/n_ch_gradcam
+    # print([-2*i*scale + (1 - 2*scale) for i in range(n_ch_gradcam)])
+    print([1-2*scale*(1+i) for i in range(n_ch_gradcam)])
 
 
 # In[GradCam]
@@ -564,12 +573,18 @@ for idx_input in [5, 0, 1, 4]:
     layer_name = layer.name
     print(layer_name)
 
-    grad_cam_label = np.argmax(model.predict([[input_image]]))
-    print(f"Predicted label: {binarizer_dict[str(grad_cam_label)]}, True label: {true_label}")
+    predicted_label = binarizer_dict[
+        str(np.argmax(
+            model.predict([[input_image]])))]
+    print(f"Predicted label: {predicted_label}, True label: {true_label}")
     
     gradcam = grad_cam(input_model, input_image, grad_cam_label, layer_name)
     visualize_gradcam(
-        gradcam, input_image, label = true_label, layer = layer_name)
+        gradcam,
+        input_image,
+        label = true_label,
+        predicted_label = predicted_label,
+        layer = layer_name)
     
     # gradcam = grad_cam(input_model, input_image, 0, layer_name)
     # visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
