@@ -40,6 +40,8 @@ sys.path.insert(0, os.path.dirname(os.getcwd()))
 
 from config import PATH_CODE, PATH_DATA
 
+do_load = True
+do_train = False
 
 # ## Load pre-processed dataset
 # + See notebook for preprocessing: ePODIUM_prepare_data_for_ML.ipynb.ipynb
@@ -48,8 +50,8 @@ from config import PATH_CODE, PATH_DATA
 
 # n_samples = 200
 n_samples = 1000
-ignore_noise = False
-# ignore_noise = True
+# ignore_noise = False
+ignore_noise = True
 
 PATH_PLOTS = "plots"
 
@@ -388,43 +390,57 @@ def visualize_and_save_gradcam(
         predicted_label = predicted_label,
         gradcam_label = gradcam_label,
         layer = layer_name)
-    fig_name = f"class{true_label}_predicted{predicted_label}_gradcam{gradcam_label}"
+    fig_name = f"class{true_label}_predicted{predicted_label}_gradcam{gradcam_label}_layer-{layer_name}"
     fig.savefig(os.path.join(plot_folder, fig_name))
     fig.clf()
     plt.close(fig)
 
-# In[GradCam]
+# In[Define plot GradCam]
 
 from grad_cam import grad_cam
 
-input_model = model
-for idx_layer in [-5, -8]:
-    for idx_input in [5, 0, 1, 4]:
-        layer = input_model.layers[idx_layer]
-        network_input = x_set_val[idx_input]
-        true_label = np.where(y_set_val[idx_input] == 1)[0][0]
-        # layer_name = "conv2d_1"
-        # layer_name = "leaky_re_lu_1"
-        # layer_name = "conv2d_3"
-        layer_name = layer.name
-        print(layer_name)
-    
-        predicted_label = np.argmax(
-                model.predict([[network_input]]))
-        print(f"Index: {idx_input}, Predicted label: {predicted_label}, True label: {true_label}")
+def plot_gradcam_samples(input_model, prediction_only = False):
+    for idx_layer in [-5, -8]:
+        for idx_input in [5, 0, 1, 4]:
+            layer = input_model.layers[idx_layer]
+            network_input = x_set_val[idx_input]
+            true_label = np.where(y_set_val[idx_input] == 1)[0][0]
+            # layer_name = "conv2d_1"
+            # layer_name = "leaky_re_lu_1"
+            # layer_name = "conv2d_3"
+            layer_name = layer.name
+            print(layer_name)
         
-        plot_folder = os.path.join(PATH_PLOTS, model_name, layer_name)
-        os.makedirs(plot_folder, exist_ok=True)
-        
-        for gradcam_label in range(4):
-            visualize_and_save_gradcam(
-                input_model,
-                network_input,
-                layer_name,
-                gradcam_label,
-                true_label,
-                predicted_label,
-                plot_folder)
+            predicted_label = np.argmax(
+                    model.predict([[network_input]]))
+            print(f"Index: {idx_input}, Predicted label: {predicted_label}, True label: {true_label}")
+            
+            plot_folder = os.path.join(PATH_PLOTS, model_name, layer_name)
+            os.makedirs(plot_folder, exist_ok=True)
+            
+            if prediction_only:
+                visualize_and_save_gradcam(
+                        input_model,
+                        network_input,
+                        layer_name,
+                        predicted_label,
+                        true_label,
+                        predicted_label,
+                        plot_folder)
+            else:
+                for gradcam_label in range(4):
+                    visualize_and_save_gradcam(
+                        input_model,
+                        network_input,
+                        layer_name,
+                        gradcam_label,
+                        true_label,
+                        predicted_label,
+                        plot_folder)
+
+
+# In[Plot Gradcam]:
+plot_gradcam_samples(model)
 
 
 # In[Clear memory]
@@ -489,6 +505,10 @@ compile_model(model)
 # In[Train]:
 if do_train:
     start_training(model, output_file, train_generator, val_generator)
+
+# In[Plot Gradcam]:
+plot_gradcam_samples(model)
+
 
 # In[Channels version]
 
@@ -562,9 +582,13 @@ if do_train:
         model, output_file, train_generator, val_generator, epochs = 200)
 
 
+# In[Plot Gradcam]:
+plot_gradcam_samples(model)
+
+
 # In[Test superpose gradcam]:
 
-layer = input_model.layers[-5]
+layer = model.layers[-5]
 idx_input = 0
 network_input = x_set_val[idx_input]
 true_label = y_set_val[idx_input]
@@ -574,39 +598,9 @@ print(layer_name)
 grad_cam_label = np.argmax(model.predict([[network_input]]))
 print(f"Predicted label: {binarizer_dict[str(grad_cam_label)]}, True label: {true_label}")
 
-gradcam = grad_cam(input_model, network_input, grad_cam_label, layer_name)
+gradcam = grad_cam(model, network_input, grad_cam_label, layer_name)
 superpose_gradcam(gradcam, network_input)
 
-
-# In[GradCam]
-
-from grad_cam import grad_cam
-
-input_model = model
-# for layer in input_model.layers[:-4]:
-#     idx_input = 5
-for idx_input in [5, 0, 1, 4]:
-    layer = input_model.layers[-5]
-    network_input = x_set_val[idx_input]
-    true_label = y_set_val[idx_input]
-    # layer_name = "conv2d_1"
-    # layer_name = "leaky_re_lu_1"
-    # layer_name = "conv2d_3"
-    layer_name = layer.name
-    print(layer_name)
-
-    predicted_label = binarizer_dict[
-        str(np.argmax(
-            model.predict([[network_input]])))]
-    print(f"Predicted label: {predicted_label}, True label: {true_label}")
-    
-    gradcam = grad_cam(input_model, network_input, grad_cam_label, layer_name)
-    visualize_gradcam(
-        gradcam,
-        network_input,
-        label = true_label,
-        predicted_label = predicted_label,
-        layer = layer_name)
 
 
 # In[Define confusion matrix]:
