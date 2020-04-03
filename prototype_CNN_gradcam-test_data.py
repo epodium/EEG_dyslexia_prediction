@@ -44,15 +44,20 @@ from config import PATH_CODE, PATH_DATA
 # ## Load pre-processed dataset
 # + See notebook for preprocessing: ePODIUM_prepare_data_for_ML.ipynb.ipynb
 
-# In[3]:
+# In[More Configurations]:
 
 # n_samples = 200
 n_samples = 1000
+ignore_noise = False
+# ignore_noise = True
+
+PATH_PLOTS = "plots"
 
 PATH_DATA_processed = os.path.join(PATH_DATA, "test_data")
 
-x_data = np.load(os.path.join(PATH_DATA_processed, f"x_data_{n_samples}.npy"))
-y_data = np.load(os.path.join(PATH_DATA_processed, f"y_data_{n_samples}.npy"))
+
+x_data = np.load(os.path.join(PATH_DATA_processed, f"x_data_s{n_samples}_n{int(not ignore_noise)}.npy"))
+y_data = np.load(os.path.join(PATH_DATA_processed, f"y_data_s{n_samples}_n{int(not ignore_noise)}.npy"))
 
 
 # In[6]:
@@ -217,7 +222,7 @@ n_timepoints = x_data.shape[2]
 
 # In[ ]:
 
-for i in range(4):
+for i in range(2):
     fig = plt.figure()
     print(y[i])
     # plt.imshow(np.repeat(X[i].reshape((X[i].shape[0:2])), 16, axis = 0))
@@ -342,10 +347,10 @@ model.summary()
 
 # Save best model and include early stopping
 if reduce_on_time:
-    output_filename = 'Test_data_classifier_avg_pool-100.hdf5'
+    model_name = 'Test_data_classifier_avg_pool-100'
 else:
-    output_filename = 'Test_data_classifier_avg_pool-4_conv-1-4.hdf5'
-output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
+    model_name = 'Test_data_classifier_avg_pool-4_conv-1-4'
+output_file = os.path.join(PATH_CODE, 'models_trained' , f"{model_name}.hdf5")
 
 
 # In[Load model]:
@@ -365,35 +370,61 @@ if do_train:
     start_training(model, output_file, train_generator, val_generator)
 
 
+# In[Def visualize gradcam and save]
+def visualize_and_save_gradcam(
+        input_model,
+        network_input,
+        layer_name,
+        gradcam_label,
+        true_label,
+        predicted_label,
+        plot_folder):
+    
+    gradcam = grad_cam(input_model, network_input, gradcam_label, layer_name)
+    fig = visualize_gradcam(
+        gradcam,
+        network_input,
+        true_label = true_label,
+        predicted_label = predicted_label,
+        gradcam_label = gradcam_label,
+        layer = layer_name)
+    fig_name = f"class{true_label}_predicted{predicted_label}_gradcam{gradcam_label}"
+    fig.savefig(os.path.join(plot_folder, fig_name))
+    fig.clf()
+    plt.close(fig)
 
 # In[GradCam]
 
 from grad_cam import grad_cam
 
 input_model = model
-for idx_input in [5, 0, 1, 4]:
-    layer = input_model.layers[-5]
-    input_image = x_set_val[idx_input]
-    true_label = y_set_val[idx_input]
-    # layer_name = "conv2d_1"
-    # layer_name = "leaky_re_lu_1"
-    # layer_name = "conv2d_3"
-    layer_name = layer.name
-    print(layer_name)
-
-    predicted_label = binarizer_dict[
-        str(np.argmax(
-            model.predict([[input_image]])))]
-    print(f"Predicted label: {predicted_label}, True label: {true_label}")
+for idx_layer in [-5, -8]:
+    for idx_input in [5, 0, 1, 4]:
+        layer = input_model.layers[idx_layer]
+        network_input = x_set_val[idx_input]
+        true_label = np.where(y_set_val[idx_input] == 1)[0][0]
+        # layer_name = "conv2d_1"
+        # layer_name = "leaky_re_lu_1"
+        # layer_name = "conv2d_3"
+        layer_name = layer.name
+        print(layer_name)
     
-    for i_class in range(4):
-        gradcam = grad_cam(input_model, input_image, i_class, layer_name)
-        visualize_gradcam(
-            gradcam,
-            input_image,
-            label = true_label,
-            predicted_label = predicted_label,
-            layer = layer_name)
+        predicted_label = np.argmax(
+                model.predict([[network_input]]))
+        print(f"Index: {idx_input}, Predicted label: {predicted_label}, True label: {true_label}")
+        
+        plot_folder = os.path.join(PATH_PLOTS, model_name, layer_name)
+        os.makedirs(plot_folder, exist_ok=True)
+        
+        for gradcam_label in range(4):
+            visualize_and_save_gradcam(
+                input_model,
+                network_input,
+                layer_name,
+                gradcam_label,
+                true_label,
+                predicted_label,
+                plot_folder)
 
 
 # In[Clear memory]
@@ -440,8 +471,8 @@ model.summary()
 
 # Save best model and include early stopping
 
-output_filename = f'Test_data_assaf2019_avg_pool-4_conv-1-4.hdf5'
-output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
+model_name = f'Test_data_assaf2019_avg_pool-4_conv-1-4'
+output_file = os.path.join(PATH_CODE, 'models_trained' , f"{model_name}.hdf5")
 
 
 # In[Load model]:
@@ -510,8 +541,8 @@ model.summary()
 
 # Save best model and include early stopping
 
-output_filename = f'Test_data_assaf2019_avg_pool-4_conv-1-4-channels.hdf5'
-output_file = os.path.join(PATH_CODE, 'models_trained' , output_filename)
+model_name = f'Test_data_assaf2019_avg_pool-4_conv-1-4-channels'
+output_file = os.path.join(PATH_CODE, 'models_trained' , f"{model_name}.hdf5")
 
 
 # In[Load model]:
@@ -556,7 +587,7 @@ input_model = model
 #     idx_input = 5
 for idx_input in [5, 0, 1, 4]:
     layer = input_model.layers[-5]
-    input_image = x_set_val[idx_input]
+    network_input = x_set_val[idx_input]
     true_label = y_set_val[idx_input]
     # layer_name = "conv2d_1"
     # layer_name = "leaky_re_lu_1"
@@ -566,25 +597,16 @@ for idx_input in [5, 0, 1, 4]:
 
     predicted_label = binarizer_dict[
         str(np.argmax(
-            model.predict([[input_image]])))]
+            model.predict([[network_input]])))]
     print(f"Predicted label: {predicted_label}, True label: {true_label}")
     
-    gradcam = grad_cam(input_model, input_image, grad_cam_label, layer_name)
+    gradcam = grad_cam(input_model, network_input, grad_cam_label, layer_name)
     visualize_gradcam(
         gradcam,
-        input_image,
+        network_input,
         label = true_label,
         predicted_label = predicted_label,
         layer = layer_name)
-    
-    # gradcam = grad_cam(input_model, input_image, 0, layer_name)
-    # visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
-    # gradcam = grad_cam(input_model, input_image, 1, layer_name)
-    # visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
-    # gradcam = grad_cam(input_model, input_image, 2, layer_name)
-    # visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
-    # gradcam = grad_cam(input_model, input_image, 3, layer_name)
-    # visualize_gradcam(gradcam, input_image, label = label, layer = layer_name)
 
 
 # In[Define confusion matrix]:
@@ -669,7 +691,7 @@ plot_confusion_matrix(np.argmax(true_labels, axis=1),
 from eli5.keras import gradcam as eli5_gc
 
 estimator = model
-doc = input_image
+doc = network_input
 activation_layer = layer_name
 
 weights, activations, gradients, predicted_idx, predicted_val \
