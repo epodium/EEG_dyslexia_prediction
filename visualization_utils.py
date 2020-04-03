@@ -13,18 +13,21 @@ from matplotlib import pyplot as plt, cm
 def visualize_gradcam(
         gradcam,
         network_input = None,
-        label = None,
+        true_label = None,
         predicted_label = None,
+        gradcam_label = None,
         layer = None):
     fig, ax = plt.subplots(figsize = (16, 6.4))
     ax.set_axis_off()
     n_rows = 1
     n_cols = 2
     title = ""
-    if label is not None:
-        title += f", class {label}"
+    if true_label is not None:
+        title += f", class {true_label}"
     if predicted_label is not None:
-        title += f", predicted class {predicted_label}"
+        title += f", predicted {predicted_label}"
+    if gradcam_label is not None:
+        title += f", gradcam class {gradcam_label}"
     if layer is not None:
         title += f", layer {layer}"
     plt.title(f'GradCAM{title}')
@@ -40,6 +43,7 @@ def visualize_gradcam(
     
     ax = fig.add_subplot(n_rows, n_cols, n_rows*(n_cols-1) +2)
     superpose_gradcam(gradcam, network_input, ax = ax)
+    return fig
 
 
 def visualize_timeseries(X_ts, title = None, ax = None):
