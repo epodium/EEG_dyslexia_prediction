@@ -50,6 +50,7 @@ do_train = False
 n_samples = 1000
 # ignore_noise = False
 ignore_noise = True
+ignore_noise_network = True
 
 PATH_PLOTS = "plots"
 
@@ -352,7 +353,10 @@ if reduce_on_time:
     model_name = 'Test_data_classifier_avg_pool-100'
 else:
     model_name = 'Test_data_classifier_avg_pool-4_conv-1-4'
+if ignore_noise_network:
+    model_name += "-no_noise"
 output_file = os.path.join(PATH_CODE, 'models_trained' , f"{model_name}.hdf5")
+
 
 
 # In[Load model]:
@@ -488,6 +492,8 @@ model.summary()
 # Save best model and include early stopping
 
 model_name = f'Test_data_assaf2019_avg_pool-4_conv-1-4'
+if ignore_noise_network:
+    model_name += "-no_noise"
 output_file = os.path.join(PATH_CODE, 'models_trained' , f"{model_name}.hdf5")
 
 
@@ -562,6 +568,8 @@ model.summary()
 # Save best model and include early stopping
 
 model_name = f'Test_data_assaf2019_avg_pool-4_conv-1-4-channels'
+if ignore_noise_network:
+    model_name += "-no_noise"
 output_file = os.path.join(PATH_CODE, 'models_trained' , f"{model_name}.hdf5")
 
 
@@ -665,6 +673,13 @@ def plot_confusion_matrix(y_true, y_pred, classes,
 
 # In[Define filter plot]:
 
+"""
+Plot the weights of the first layer filter (pending implementation of
+intermediate layers) as a background colored graph.
+
+Expected to see recognizable patterns for each filter, encountered noise
+"""
+
 from matplotlib import cm
 def visualize_generic_timeseries(X_ts, title = None, ax = None):
     n_ch, n_points = X_ts.shape[0:2]
@@ -706,6 +721,7 @@ for idx_layer in conv2d_layers:
 
     visualize_generic_timeseries(weights, title = f"Layer: {layer.name}")
     plt.show()
+
 
 
 
