@@ -2,19 +2,19 @@
 # coding: utf-8
 
 # # Try out CNN on averaged EEG data
-# 
+#
 # ## Pre-processing
 # + Import data.
 # + Apply filters (bandpass).
 # + Detect potential bad channels and replace them by interpolation.
 # + Detect potential bad epochs and remove them.
 # + Average over a number of randomly drawn epochs (of same person and same stimuli).
-# 
+#
 # ## Train CNN network
 # + Define network architecture
 # + Split data
 # + Train model
-# 
+#
 
 # ## Import packages & links
 
@@ -46,8 +46,6 @@ do_train = False
 # ## Load pre-processed dataset
 # + See notebook for preprocessing: ePODIUM_prepare_data_for_ML.ipynb.ipynb
 
-# In[More Configurations]:
-
 # n_samples = 200
 n_samples = 1000
 # ignore_noise = False
@@ -57,6 +55,8 @@ PATH_PLOTS = "plots"
 
 PATH_DATA_processed = os.path.join(PATH_DATA, "test_data")
 
+
+# In[Load Files]:
 
 x_data = np.load(os.path.join(PATH_DATA_processed, f"x_data_s{n_samples}_n{int(not ignore_noise)}.npy"))
 y_data = np.load(os.path.join(PATH_DATA_processed, f"y_data_s{n_samples}_n{int(not ignore_noise)}.npy"))
@@ -98,12 +98,12 @@ for label in label_collection:
     n_val = int(split_ratio[1] * n_label)
     n_test = n_label - n_train - n_val
     print("Split dataset for label", label, "into train/val/test fractions:", n_train, n_val, n_test)
-    
+
     # Select training, validation, and test IDs:
     trainIDs = np.random.choice(indices, n_train, replace=False)
     valIDs = np.random.choice(list(set(indices) - set(trainIDs)), n_val, replace=False)
     testIDs = list(set(indices) - set(trainIDs) - set(valIDs))
-    
+
     ids_train.extend(list(trainIDs))
     ids_val.extend(list(valIDs))
     ids_test.extend(list(testIDs))
@@ -228,7 +228,7 @@ for i in range(2):
     fig = plt.figure()
     print(y[i])
     # plt.imshow(np.repeat(X[i].reshape((X[i].shape[0:2])), 16, axis = 0))
-    
+
     visualize_timeseries(X[i], str(y[i]))
 
 
@@ -250,9 +250,9 @@ tf.compat.v1.disable_eager_execution() # TODO Delete, substitute gradients for G
 def start_training(
         model, output_file, train_generator, val_generator, epochs = 50):
     checkpointer = ModelCheckpoint(
-        filepath = output_file, 
-        monitor='val_accuracy', 
-        verbose=1, 
+        filepath = output_file,
+        monitor='val_accuracy',
+        verbose=1,
         save_best_only=True
         )
     earlystopper = EarlyStopping(
@@ -260,9 +260,9 @@ def start_training(
         patience=10,
         verbose=1
         )
-    
+
     model.fit(
-        x=train_generator, 
+        x=train_generator,
         validation_data=val_generator,
         epochs=epochs,
         callbacks = [
@@ -286,7 +286,7 @@ def compile_model(model):
     #model.compile(loss='categorical_crossentropy', optimizer=Adam, metrics=['accuracy'])
     #model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
     #model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
-    
+
     model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=['accuracy'])
     #model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
@@ -331,7 +331,7 @@ else:
     model.add(layers.Conv2D(filters=4, kernel_size=(1, 1))) # Reducing dimensionality on filters dimension
     model.add(layers.BatchNormalization())
     model.add(layers.LeakyReLU())
-    model.add(layers.AveragePooling2D(pool_size=(1, 4))) 
+    model.add(layers.AveragePooling2D(pool_size=(1, 4)))
 
 model.add(layers.Flatten())
 model.add(layers.Dense(100, activation='relu'))
@@ -381,7 +381,7 @@ def visualize_and_save_gradcam(
         true_label,
         predicted_label,
         plot_folder):
-    
+
     gradcam = grad_cam(input_model, network_input, gradcam_label, layer_name)
     fig = visualize_gradcam(
         gradcam,
@@ -410,14 +410,14 @@ def plot_gradcam_samples(input_model, prediction_only = False):
             # layer_name = "conv2d_3"
             layer_name = layer.name
             print(layer_name)
-        
+
             predicted_label = np.argmax(
                     model.predict([[network_input]]))
             print(f"Index: {idx_input}, Predicted label: {predicted_label}, True label: {true_label}")
-            
+
             plot_folder = os.path.join(PATH_PLOTS, model_name, layer_name)
             os.makedirs(plot_folder, exist_ok=True)
-            
+
             if prediction_only:
                 visualize_and_save_gradcam(
                         input_model,
@@ -472,7 +472,7 @@ model.add(layers.LeakyReLU())
 model.add(layers.Conv2D(filters=4, kernel_size=(1, 1))) # Reducing dimensionality on filters dimension
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
-model.add(layers.AveragePooling2D(pool_size=(1, 4))) 
+model.add(layers.AveragePooling2D(pool_size=(1, 4)))
 
 
 model.add(layers.Flatten())
@@ -546,7 +546,7 @@ model.add(layers.LeakyReLU())
 model.add(layers.Conv2D(filters=4, kernel_size=(1, 1))) # Reducing dimensionality on filters dimension
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
-model.add(layers.AveragePooling2D(pool_size=(1, 1))) 
+model.add(layers.AveragePooling2D(pool_size=(1, 1)))
 
 
 model.add(layers.Flatten())
@@ -616,7 +616,7 @@ def plot_confusion_matrix(y_true, y_pred, classes,
     Normalization can be applied by setting `normalize=True`.
     """
     # from sklearn.utils.multiclass import unique_labels
-    
+
     if not title:
         if normalize:
             title = 'Normalized confusion matrix'
@@ -663,6 +663,52 @@ def plot_confusion_matrix(y_true, y_pred, classes,
     return ax
 
 
+# In[Define filter plot]:
+
+from matplotlib import cm
+def visualize_generic_timeseries(X_ts, title = None, ax = None):
+    n_ch, n_points = X_ts.shape[0:2]
+
+    bg_cmap = cm.get_cmap('inferno')
+    norm = cm.colors.Normalize(vmin = np.min(X_ts), vmax = np.max(X_ts))
+    bg_colors = bg_cmap(norm(X_ts))
+
+    if ax is None:
+        plt.style.use('ggplot')
+        fig, ax = plt.subplots(figsize=(20,(1+0.7 *n_ch*2)))
+    x_bar = range(n_points)
+    for i in range(n_ch):
+        ax.bar(
+            x = x_bar,
+            height = 2,
+            width = 1,
+            bottom = -2*i-1,
+            color = bg_colors[i],
+            alpha = 0.75,
+            edgecolor = None)
+        ax.plot((norm(X_ts[i,:]) - i*2), color="black")
+
+    if title:
+        ax.set_title(title)
+    ax.set_yticks(-np.arange(n_ch)*2)
+    ax.set_yticklabels(['filter ' + str(i) for i in range(n_ch)])
+    ax.set_xlabel('time')
+    return ax
+
+
+# In[Plot filter weights]:
+
+conv2d_layers = [0, 3, 6]
+for idx_layer in conv2d_layers:
+    layer = model.layers[idx_layer]
+    weights = layer.get_weights()[0]
+    weights = weights.T.reshape((weights.shape[3], weights.shape[1]))
+
+    visualize_generic_timeseries(weights, title = f"Layer: {layer.name}")
+    plt.show()
+
+
+
 # In[Plot confusion matrix]
 
 labels = list(binarizer_dict.keys())
@@ -671,8 +717,8 @@ true_labels = y_set_test
 predicted_labels = model.predict(x_set_test)
 
 
-plot_confusion_matrix(np.argmax(true_labels, axis=1), 
-                      np.argmax(predicted_labels, axis=1), 
+plot_confusion_matrix(np.argmax(true_labels, axis=1),
+                      np.argmax(predicted_labels, axis=1),
                       classes=labels, normalize=True,
                       title='Normalized confusion matrix')
 
