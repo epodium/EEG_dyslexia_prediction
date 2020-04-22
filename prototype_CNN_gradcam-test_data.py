@@ -723,6 +723,58 @@ for idx_layer in conv2d_layers:
     plt.show()
 
 
+# In[Import Lucid]:
+
+"""
+Use lucid to extract filter information by using Feature Visualization techniques
+
+Using git repository because documentation to load/save models is not available
+for the current version in pip (0.38)
+"""
+cwd = os.getcwd()
+lucid_path = os.path.abspath(os.path.join(cwd, "..", "tools", "lucid"))
+
+if not lucid_path in sys.path:
+    sys.path.append(lucid_path)
+
+import numpy as np
+import tensorflow as tf
+assert tf.__version__.startswith('1')
+from tensorflow.keras import backend as K
+
+from lucid.misc.io import show
+import lucid.optvis.objectives as objectives
+import lucid.optvis.param as param
+import lucid.optvis.render as render
+import lucid.optvis.transform as transform
+
+
+# In[Lucid testing]:
+
+from lucid.modelzoo.vision_base import Model
+
+
+K.set_learning_phase(0)
+
+lucid_model_name = "lucid_model.pb"
+
+with K.get_session().as_default():
+# with tf.Graph().as_default() as graph, tf.Session() as sess:
+    # <Code to construct & load your model inference graph goes here>
+
+
+
+    Model.save(
+        lucid_model_name,
+        input_name = model.layers[0].name,
+        output_names = [model.layers[-1].name + r"/Softmax"],
+        image_shape = input_shape,
+        image_value_range = [-1, 1]
+        )
+
+# lucid_model = Model.load(lucid_model_name)
+# render.render_vis(lucid_model, "conv2d:0")
+
 
 
 # In[Plot confusion matrix]
