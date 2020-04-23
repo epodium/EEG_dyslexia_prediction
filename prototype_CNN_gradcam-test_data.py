@@ -190,10 +190,8 @@ train_generator = FakeDataGenerator(x_set_train, y_set_train)
 val_generator = FakeDataGenerator(x_set_val, y_set_val)
 
 
-# In[34]:
-
-
 X, y  = train_generator.__getitem__(0)
+
 
 
 # In[35]:
@@ -680,6 +678,7 @@ intermediate layers) as a background colored graph.
 Expected to see recognizable patterns for each filter, encountered noise
 """
 
+# TODO It's plotting only on the positive part
 from matplotlib import cm
 def visualize_generic_timeseries(X_ts, title = None, ax = None):
     n_ch, n_points = X_ts.shape[0:2]
@@ -728,11 +727,12 @@ for idx_layer in conv2d_layers:
 """
 Use lucid to extract filter information by using Feature Visualization techniques
 
-Using git repository because documentation to load/save models is not available
-for the current version in pip (0.38)
 """
 cwd = os.getcwd()
 lucid_path = os.path.abspath(os.path.join(cwd, "..", "tools", "lucid"))
+    # Using git repository because documentation to load/save models is not available
+    # for the current version in pip (0.38)
+
 
 if not lucid_path in sys.path:
     sys.path.append(lucid_path)
@@ -753,27 +753,90 @@ import lucid.optvis.transform as transform
 
 from lucid.modelzoo.vision_base import Model
 
-
-K.set_learning_phase(0)
+from tensorflow.python.framework import graph_util
+from tensorflow.python.framework import graph_io
 
 lucid_model_name = "lucid_model.pb"
 
+output_meta_ckpt =  False   # If set to True, exports the model as .meta, .index, and
+                            # .data files, with a checkpoint file. These can be later
+                            # loaded in TensorFlow to continue training.
+save_graph_def = False  # Whether to save the graphdef.pbtxt file which contains
+                         # the graph definition in ASCII format.
+quantize = False    # If set, the resultant TensorFlow graph weights will be
+                    # converted from float into eight-bit equivalents. See
+                    # documentation here:
+
+from pathlib import Path
+
+output_model = "output_model.pb"
+if str(Path(output_model).parent) == '.':
+    output_model = str((Path.cwd() / output_model))
+
+output_fld = Path(output_model).parent
+output_model_name = Path(output_model).name
+output_model_stem = Path(output_model).stem
+output_model_pbtxt_name = output_model_stem + '.pbtxt'
+output_node_names = [node.op.name for node in model.outputs]
+
 with K.get_session().as_default():
-# with tf.Graph().as_default() as graph, tf.Session() as sess:
-    # <Code to construct & load your model inference graph goes here>
+    # with tf.Graph().as_default() as graph, tf.Session() as sess:
+    # with K.get_session().graph.as_default() as graph, K.get_session() as sess:
+        # <Code to construct & load your model inference graph goes here>
 
+        K.set_learning_phase(0)
+        sess = K.get_session()
+        if output_meta_ckpt:
+            saver = tf.train.Saver()
+            saver.save(sess, str(output_fld / output_model_stem))
 
+        if save_graph_def:
+            tf.train.write_graph(sess.graph.as_graph_def(), str(output_fld),
+                                 output_model_pbtxt_name, as_text=True)
 
-    Model.save(
-        lucid_model_name,
-        input_name = model.layers[0].name,
-        output_names = [model.layers[-1].name + r"/Softmax"],
-        image_shape = input_shape,
-        image_value_range = [-1, 1]
-        )
+        if quantize:
+            from tensorflow.tools.graph_transforms import TransformGraph
+            transforms = ["quantize_weights", "quantize_nodes"]
+            transformed_graph_def = TransformGraph(sess.graph.as_graph_def(), [],
+                                                   output_node_names,
+                                                   transforms)
+            constant_graph = graph_util.convert_variables_to_constants(
+                sess,
+                transformed_graph_def,
+                output_node_names)
+        else:
+            constant_graph = graph_util.convert_variables_to_constants(
+                sess,
+                sess.graph.as_graph_def(),
+                output_node_names)
 
+        graph_io.write_graph(constant_graph, str(output_fld), output_model_name,
+                             as_text=False)
+
+        Model.suggest_save_args()   # To check that the model has been constructed
+                                    # successfully as an inference graph and that
+                                    # the inputs are correct
+
+        Model.save(
+            lucid_model_name,
+            input_name = model.layers[0].name,
+            output_names = output_node_names,
+            image_shape = input_shape,
+            image_value_range = [-1, 1]
+            )
+
+lucid_model = Model.load_from_metadata(
+    output_model,
+    metadata = {
+        "input_name" : model.layers[0].name,
+        "image_shape" : input_shape,
+        "image_value_range" : [-1, 1]
+        }
+    )
 # lucid_model = Model.load(lucid_model_name)
-# render.render_vis(lucid_model, "conv2d:0")
+lucid_model.get_layer("conv2d")
+
+# render.render_vis(lucid_model, "conv2d:1")
 
 
 
