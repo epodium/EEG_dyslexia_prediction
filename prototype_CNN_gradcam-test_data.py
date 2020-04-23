@@ -700,7 +700,7 @@ def visualize_generic_timeseries(X_ts, title = None, ax = None):
             color = bg_colors[i],
             alpha = 0.75,
             edgecolor = None)
-        ax.plot((norm(X_ts[i,:]) - i*2), color="black")
+        ax.plot((norm(X_ts[i,:])*2 -1 - i*2), color="black")
 
     if title:
         ax.set_title(title)
