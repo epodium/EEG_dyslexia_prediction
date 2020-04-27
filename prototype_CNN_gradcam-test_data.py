@@ -749,7 +749,7 @@ import lucid.optvis.render as render
 import lucid.optvis.transform as transform
 
 
-# In[Lucid testing]:
+# In[Lucid testing - Saving models]:
 
 from lucid.modelzoo.vision_base import Model
 
@@ -824,6 +824,9 @@ with K.get_session().as_default():
             image_shape = input_shape,
             image_value_range = [-1, 1]
             )
+
+
+# In[Lucid: Loading models]:
 
 lucid_model = Model.load_from_metadata(
     output_model,
