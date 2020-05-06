@@ -140,6 +140,8 @@ val_generator = FakeDataGenerator(x_set_val, y_set_val)
 
 # In[Initialize mcfly]:
 
+from datetime import datetime
+
 data_type = f"test_data-noise{int(not ignore_noise)}"
 
 NR_MODELS = 20
@@ -153,7 +155,9 @@ train_type = "models{}-epochs{}-e_stop{}-subset{}".format(
     EARLY_STOPPING,
     SUBSET_SIZE)
 
-outputfile_name = f"{data_type}-{train_type}.json"
+timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+
+outputfile_name = f"{timestamp}-{data_type}-{train_type}.json"
 
 num_classes = binary_y_data.shape[1]
 metric = 'accuracy'
