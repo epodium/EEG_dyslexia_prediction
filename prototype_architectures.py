@@ -144,10 +144,11 @@ from datetime import datetime
 
 data_type = f"test_data-noise{int(not ignore_noise)}"
 
-NR_MODELS = 20
+NR_MODELS = 8
 NR_EPOCHS = 30
 EARLY_STOPPING = 10
 SUBSET_SIZE = 600
+MODEL_TYPES = ["CNN", "FCN"]
 
 train_type = "models{}-epochs{}-e_stop{}-subset{}".format(
     NR_MODELS,
@@ -157,7 +158,7 @@ train_type = "models{}-epochs{}-e_stop{}-subset{}".format(
 
 timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
-outputfile_name = f"{timestamp}-{data_type}-{train_type}.json"
+outputfile_name = f"{timestamp}-{data_type}-{train_type}-FCN_CNN.json"
 
 num_classes = binary_y_data.shape[1]
 metric = 'accuracy'
@@ -165,6 +166,7 @@ models = mcfly.modelgen.generate_models(
     x_set_train.shape,
     number_of_classes=num_classes,
     number_of_models = NR_MODELS,
+    model_types = MODEL_TYPES,
     metrics=[metric])
 
 
