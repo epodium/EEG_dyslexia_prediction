@@ -203,7 +203,7 @@ class DataGenerator(Sequence):
         #y_data = self.label_binarize.fit_transform(np.array(y_data).astype(int))
         y_data = np.array([self.binarizer_dict[x] for x in y_data])
         X_data = np.swapaxes(X_data,1,2)
-        X_data = np.expand_dims(X_data, axis = 3)
+        # X_data = np.expand_dims(X_data, axis = 3)
         return X_data, y_data
 
 
