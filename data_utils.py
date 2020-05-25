@@ -24,6 +24,7 @@ def prepare_set(indices, full_x_data, full_y_data):
     return x_set, y_set
 
 
+# TODO: This may be covered by np.swapaxes
 def exchange_channels(data):
     return data.reshape(
         (data.shape[0], data.shape[2] * data.shape[1])).reshape((
@@ -33,7 +34,8 @@ def exchange_channels(data):
 
 def unroll_generator(generator):
     first_batch = True
-    for batch in generator:
+    for i, batch in enumerate(generator):
+        print(i)
         if first_batch:
             first_batch = False
             x_set = batch[0]
@@ -83,22 +85,6 @@ def prepare_generators(
     return generators
 
 
-
-
-def read_labels(filename, PATH):
-    metadata = []
-    filename = os.path.join(PATH, filename)
-    with open(filename, 'r') as readFile:
-        reader = csv.reader(readFile, delimiter=',')
-        for row in reader:
-            if len(row) > 0:
-                # metadata.append(row)
-                metadata.append(''.join(row)) # TODO Delete, hotfix for csv issue
-    readFile.close()
-
-    return metadata
-
-
 def binarize_labels(label_dict):
     values = [int(x) for x in label_dict.values()]
     size = np.max(values)
@@ -114,7 +100,7 @@ def list_main_labels(path_data, files_csv, main_label_dict):
     label_collection = []
 
     for filename in files_csv:
-        y_EEG = read_labels(filename, path_data)
+        y_EEG = read_csv_labels(filename, path_data)
         labels_unique = list(set(y_EEG))
         label_collection.append(labels_unique)
 
@@ -129,9 +115,9 @@ def read_csv_labels(filename, PATH):
     with open(filename, 'r') as readFile:
         reader = csv.reader(readFile, delimiter=',')
         for row in reader:
-            if len(row) > 0:
-                # metadata.append(row)
-                metadata.append(''.join(row)) # TODO Delete, hotfix for csv issue
+            metadata += row
+            # if len(row) > 0:
+                # metadata.append(''.join(row)) # TODO Delete, hotfix for csv issue
     readFile.close()
 
     return metadata
