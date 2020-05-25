@@ -272,9 +272,9 @@ class DataGenerator(Sequence):
         with open(filename, 'r') as readFile:
             reader = csv.reader(readFile, delimiter=',')
             for row in reader:
-                if len(row) > 0:
-                # metadata.append(row)
-                    metadata.append(''.join(row)) # TODO Delete, hotfix for csv issue
+                metadata += row
+                # if len(row) > 0:
+                    # metadata.append(''.join(row)) # TODO Delete, hotfix for csv issue
         readFile.close()
 
         return metadata
