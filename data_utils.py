@@ -34,15 +34,17 @@ def exchange_channels(data):
 
 def unroll_generator(generator):
     first_batch = True
-    for i, batch in enumerate(generator):
-        print(i)
+    for batch_x, batch_y in generator:
+        if len(batch_y) == 0:
+            continue
+
         if first_batch:
             first_batch = False
-            x_set = batch[0]
-            y_set = batch[1]
+            x_set = batch_x
+            y_set = batch_y
         else:
-            x_set = np.concatenate((x_set, batch[0]))
-            y_set = np.concatenate((y_set, batch[1]))
+            x_set = np.concatenate((x_set, batch_x))
+            y_set = np.concatenate((y_set, batch_y))
     return x_set, y_set
 
 
