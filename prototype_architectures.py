@@ -7,6 +7,9 @@ import sys
 import numpy as np
 import pandas as pd
 
+from data_utils import prepare_set, exchange_channels, prepare_generators, \
+    unroll_generator
+
 # In[Import local packages]
 cwd = os.getcwd()
 # sys.path.insert(0, os.path.dirname(os.getcwd()))
@@ -23,152 +26,193 @@ import mcfly
 
 from config import PATH_CODE, PATH_DATA
 
-do_load = True
-do_train = False
 
-# ## Load pre-processed dataset
-# + See notebook for preprocessing: ePODIUM_prepare_data_for_ML.ipynb.ipynb
+real_data = True
 
+if real_data:
+    dataset_folder = 'processed_data_17mn'
+    # dataset_folder = "processed_data_41mnd"
+else:
 
-# ts_type = "test"
-ts_type = "benchmark1"
-# n_samples = 200
-n_samples = 1000
-ignore_noise = False
-# ignore_noise_network = True
-
-PATH_PLOTS = "plots"
-
-PATH_DATA_processed = os.path.join(PATH_DATA, "test_data")
+    # ## Load pre-processed dataset
+    # + See notebook for preprocessing: ePODIUM_prepare_data_for_ML.ipynb.ipynb
 
 
-# In[Load Files]:
+    # ts_type = "test"
+    ts_type = "benchmark1"
+    # n_samples = 200
+    n_samples = 1000
+    ignore_noise = False
+    # ignore_noise_network = True
 
-x_data = np.load(os.path.join(
-    PATH_DATA_processed,
-    f"x_data_{ts_type}_s{n_samples}_n{int(not ignore_noise)}.npy"))
-y_data = np.load(os.path.join(
-    PATH_DATA_processed,
-    f"y_data_{ts_type}_s{n_samples}_n{int(not ignore_noise)}.npy"))
+    PATH_DATA_processed = os.path.join(PATH_DATA, "test_data")
+
+
+    # In[Load Files]:
+
+if real_data:
+    import fnmatch
+
+    PATH_DATA_processed = os.path.join(PATH_DATA, dataset_folder)
+
+    dirs = os.listdir(PATH_DATA_processed)
+    files_npy = fnmatch.filter(dirs, "*.npy")
+    files_csv = fnmatch.filter(dirs, "*.csv")
+
+    main_label_dict  = {
+        '3dys0_risk0': '0',
+        '13dys0_risk0': '0',
+        '66dys0_risk0': '0',
+        '3dys0_risk1': '0',
+        '13dys0_risk1': '0',
+        '66dys0_risk1': '0',
+        '3dys1_risk0': '1',
+        '13dys1_risk0': '1',
+        '66dys1_risk0': '1',
+        '3dys1_risk1': '1',
+        '13dys1_risk1': '1',
+        '66dys1_risk1': '1',
+    }
+
+    label_dict  = {
+        '66dys0_risk0': '0',
+        '66dys0_risk1': '0',
+        '66dys1_risk0': '1',
+        '66dys1_risk1': '1',
+    }
+
+    ignore_labels = [
+        '3dys0_risk0', '3dys0_risk1', '3dys1_risk0', '3dys1_risk1',
+        '13dys0_risk0', '13dys0_risk1', '13dys1_risk0', '13dys1_risk1']
+
+    np.random.seed(1098)
+    split_ratio = (0.7, 0.15, 0.15)
+    train_generator, val_generator, test_generator = prepare_generators(
+        PATH_DATA_processed,
+        main_label_dict,
+        label_dict,
+        split_ratio,
+        ignore_labels)
+
+    x_set_train, y_set_train = unroll_generator(train_generator)
+    x_set_val, y_set_val = unroll_generator(val_generator)
+
+    data_type = f"{dataset_folder}"
+
+
+
+
+else:
+    x_data = np.load(os.path.join(
+        PATH_DATA_processed,
+        f"x_data_{ts_type}_s{n_samples}_n{int(not ignore_noise)}.npy"))
+    y_data = np.load(os.path.join(
+        PATH_DATA_processed,
+        f"y_data_{ts_type}_s{n_samples}_n{int(not ignore_noise)}.npy"))
+    data_type = f"{ts_type}-noise{int(not ignore_noise)}"
 
 
 # In[6]:
 
 
-label_collection = np.unique(y_data)
+    label_collection = np.unique(y_data)
 
 
-# In[Separate data by labels]
+    # In[Separate data by labels]
 
-label_ids_dict = dict()
-for label in label_collection:
-    label_ids_dict[label] = list()
+    label_ids_dict = dict()
+    for label in label_collection:
+        label_ids_dict[label] = list()
 
-for i in range(len(y_data)):
-    label = y_data[i]
-    label_ids_dict[label] = label_ids_dict[label] + [i]
-
-
-# In[30]:
+    for i in range(len(y_data)):
+        label = y_data[i]
+        label_ids_dict[label] = label_ids_dict[label] + [i]
 
 
-np.random.seed(1098)
-split_ratio = (0.7, 0.15, 0.15)
-
-ids_train = []
-ids_val = []
-ids_test = []
-
-for label in label_collection:
-    indices = label_ids_dict[label]
-    n_label = len(indices)
-    print("Found", n_label, "datapoints for label", label)
-
-    n_train = int(split_ratio[0] * n_label)
-    n_val = int(split_ratio[1] * n_label)
-    n_test = n_label - n_train - n_val
-    print("Split dataset for label", label, "into train/val/test fractions:",
-          n_train, n_val, n_test)
-
-    # Select training, validation, and test IDs:
-    trainIDs = np.random.choice(indices, n_train, replace=False)
-    valIDs = np.random.choice(
-        list(set(indices) - set(trainIDs)), n_val, replace=False)
-    testIDs = list(set(indices) - set(trainIDs) - set(valIDs))
-
-    ids_train.extend(list(trainIDs))
-    ids_val.extend(list(valIDs))
-    ids_test.extend(list(testIDs))
+    # In[30]:
 
 
-# In[Randomize ids]:
+    np.random.seed(1098)
+    split_ratio = (0.7, 0.15, 0.15)
 
-# ids_train = np.array(ids_train)[np.random.permutation(len(ids_train))]
-# ids_val = np.array(ids_train)[np.random.permutation(len(ids_val))]
-# ids_test = np.array(ids_train)[np.random.permutation(len(ids_test))]
+    ids_train = []
+    ids_val = []
+    ids_test = []
 
-np.random.shuffle(ids_train)
-np.random.shuffle(ids_val)
-np.random.shuffle(ids_test)
+    for label in label_collection:
+        indices = label_ids_dict[label]
+        n_label = len(indices)
+        print("Found", n_label, "datapoints for label", label)
+
+        n_train = int(split_ratio[0] * n_label)
+        n_val = int(split_ratio[1] * n_label)
+        n_test = n_label - n_train - n_val
+        print("Split dataset for label", label, "into train/val/test fractions:",
+              n_train, n_val, n_test)
+
+        # Select training, validation, and test IDs:
+        trainIDs = np.random.choice(indices, n_train, replace=False)
+        valIDs = np.random.choice(
+            list(set(indices) - set(trainIDs)), n_val, replace=False)
+        testIDs = list(set(indices) - set(trainIDs) - set(valIDs))
+
+        ids_train.extend(list(trainIDs))
+        ids_val.extend(list(valIDs))
+        ids_test.extend(list(testIDs))
 
 
-# In[Binarize labels]
+    # In[Randomize ids]:
 
-from sklearn import preprocessing
-lb = preprocessing.LabelBinarizer()
-lb.fit(label_collection)
-print(lb.classes_)
+    # ids_train = np.array(ids_train)[np.random.permutation(len(ids_train))]
+    # ids_val = np.array(ids_train)[np.random.permutation(len(ids_val))]
+    # ids_test = np.array(ids_train)[np.random.permutation(len(ids_test))]
 
-binary_y_data = lb.fit_transform(y_data)
+    np.random.shuffle(ids_train)
+    np.random.shuffle(ids_val)
+    np.random.shuffle(ids_test)
+
+
+    # In[Binarize labels]
+
+    from sklearn import preprocessing
+    lb = preprocessing.LabelBinarizer()
+    lb.fit(label_collection)
+    print(lb.classes_)
+
+    binary_y_data = lb.fit_transform(y_data)
 
 
 
-# In[Split datasets]
+    # In[Split datasets]
 
-# NOTE: mcfly takes data in the shape of length timeseries and channels
+    # NOTE: mcfly takes data in the shape of length timeseries and channels
 
-def exchange_channels(data):
-    return data.reshape(
-        (data.shape[0], data.shape[2] * data.shape[1])).reshape((
-            data.shape[0], data.shape[2], data.shape[1]), order = 'F')
 
-def check_reshape(o_data, rs_data):
-    for i in range(o_data.shape[0]):
-        for j in range(o_data.shape[1]):
-            for k in range(o_data.shape[2]):
-                if o_data[i][j][k] != rs_data[i][k][j]:
-                    return False
-    return True
+    def check_reshape(o_data, rs_data):
+        for i in range(o_data.shape[0]):
+            for j in range(o_data.shape[1]):
+                for k in range(o_data.shape[2]):
+                    if o_data[i][j][k] != rs_data[i][k][j]:
+                        return False
+        return True
 
-def prepare_sets(indices, full_x_data, full_y_data):
-    x_set = list()
-    y_set = list()
-    for idx in indices:
-        x_set.append(full_x_data[idx])
-        y_set.append(full_y_data[idx])
-    x_set = np.array(x_set)
-    # x_set = x_set.reshape(np.concatenate((x_set.shape, [1])))
-    y_set = np.array(y_set)
-    return x_set, y_set
 
-print(x_data.shape)
-x_data = exchange_channels(x_data)
-print(x_data.shape)
+    print(x_data.shape)
+    x_data = exchange_channels(x_data)
+    print(x_data.shape)
 
-x_set_train, y_set_train = prepare_sets(ids_train, x_data, binary_y_data)
-x_set_val, y_set_val = prepare_sets(ids_val, x_data, binary_y_data)
-x_set_test, y_set_test = prepare_sets(ids_test, x_data, binary_y_data)
+    x_set_train, y_set_train = prepare_set(ids_train, x_data, binary_y_data)
+    x_set_val, y_set_val = prepare_set(ids_val, x_data, binary_y_data)
+    x_set_test, y_set_test = prepare_set(ids_test, x_data, binary_y_data)
 
 
 # In[Initialize mcfly]:
 
 from datetime import datetime
 
-data_type = f"{ts_type}-noise{int(not ignore_noise)}"
-
 # test_type = "long"
-# test_type = "short"
-test_type = "feature_test"
+test_type = "short"
+# test_type = "feature_test"
 
 if test_type == "long":
     NR_MODELS = 30
@@ -177,7 +221,7 @@ if test_type == "long":
     SUBSET_SIZE = 600
     MODEL_TYPES = ["CNN", "InceptionTime", "DeepConvLSTM", "ResNet", "FCN", "Encoder"]
 elif test_type == "short":
-    NR_MODELS = 30
+    NR_MODELS = 18
     NR_EPOCHS = 20
     EARLY_STOPPING = 5
     SUBSET_SIZE = 300
@@ -201,8 +245,10 @@ timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 outputfile_name = f"{timestamp}-{data_type}-{train_type}-All-FCN-Encoder"
 # outputfile_name = f"{timestamp}-{data_type}-{train_type}-Encoder.json"
 
-num_classes = binary_y_data.shape[1]
+num_classes = y_set_train.shape[1]
 metric = 'accuracy'
+
+
 
 
 # In[Generate models]:
