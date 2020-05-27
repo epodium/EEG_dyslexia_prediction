@@ -7,8 +7,7 @@ import sys
 import numpy as np
 import pandas as pd
 
-from data_utils import prepare_set, exchange_channels, prepare_generators, \
-    unroll_generator
+from data_utils import prepare_set, exchange_channels, prepare_generators
 
 # In[Import local packages]
 cwd = os.getcwd()
@@ -24,10 +23,11 @@ import mcfly
 # In[2]:
 
 
-from config import PATH_CODE, PATH_DATA
+from config import PATH_CODE, PATH_DATA, ROOT
 
 
 real_data = True
+# real_data = False
 
 if real_data:
     dataset_folder = 'processed_data_17mn'
@@ -45,7 +45,7 @@ else:
     ignore_noise = False
     # ignore_noise_network = True
 
-    PATH_DATA_processed = os.path.join(PATH_DATA, "test_data")
+    PATH_DATA_processed = os.path.join(ROOT, "test_data")
 
 
     # In[Load Files]:
@@ -94,8 +94,22 @@ if real_data:
         split_ratio,
         ignore_labels)
 
-    x_set_train, y_set_train = unroll_generator(train_generator)
-    x_set_val, y_set_val = unroll_generator(val_generator)
+    # x_set_train, y_set_train = unroll_generator(train_generator)
+    # x_set_val, y_set_val = unroll_generator(val_generator)
+    x_set_train = train_generator
+    y_set_train = None
+
+    # XXX: It should generally work, but this is not really a safe assumption
+    num_classes = len(train_generator.binarizer_dict)
+
+    # XXX: McFly shouldn't need the first item
+    input_shape = (
+        len(train_generator.list_IDs),
+        train_generator.n_timepoints,
+        train_generator.n_channels)
+
+    x_set_val = val_generator
+    y_set_val = None
 
     data_type = f"{dataset_folder}"
 
@@ -205,6 +219,9 @@ else:
     x_set_val, y_set_val = prepare_set(ids_val, x_data, binary_y_data)
     x_set_test, y_set_test = prepare_set(ids_test, x_data, binary_y_data)
 
+    input_shape = x_set_train.shape
+    num_classes = y_set_train.shape[1]
+
 
 # In[Initialize mcfly]:
 
@@ -227,12 +244,12 @@ elif test_type == "short":
     SUBSET_SIZE = 300
     MODEL_TYPES = ["CNN", "InceptionTime", "DeepConvLSTM", "ResNet", "FCN", "Encoder"]
 elif test_type == "feature_test":
-    NR_MODELS = 1
+    NR_MODELS = 5
     NR_EPOCHS = 20
     EARLY_STOPPING = 5
     SUBSET_SIZE = 300
-    # MODEL_TYPES = ["CNN", "InceptionTime", "DeepConvLSTM", "ResNet", "FCN", "Encoder"]
-    MODEL_TYPES = ["CNN_2D"]
+    MODEL_TYPES = ["CNN", "InceptionTime", "DeepConvLSTM", "FCN", "Encoder"]
+    # MODEL_TYPES = ["CNN_2D"]
 
 train_type = "models{}-epochs{}-e_stop{}-subset{}".format(
     NR_MODELS,
@@ -245,7 +262,6 @@ timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 outputfile_name = f"{timestamp}-{data_type}-{train_type}-All-FCN-Encoder"
 # outputfile_name = f"{timestamp}-{data_type}-{train_type}-Encoder.json"
 
-num_classes = y_set_train.shape[1]
 metric = 'accuracy'
 
 
@@ -253,7 +269,7 @@ metric = 'accuracy'
 
 # In[Generate models]:
 models = mcfly.modelgen.generate_models(
-    x_set_train.shape,
+    input_shape,
     number_of_classes=num_classes,
     number_of_models = NR_MODELS,
     model_types = MODEL_TYPES,
