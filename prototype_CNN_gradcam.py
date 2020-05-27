@@ -2,19 +2,19 @@
 # coding: utf-8
 
 # # Try out CNN on averaged EEG data
-# 
+#
 # ## Pre-processing
 # + Import data.
 # + Apply filters (bandpass).
 # + Detect potential bad channels and replace them by interpolation.
 # + Detect potential bad epochs and remove them.
 # + Average over a number of randomly drawn epochs (of same person and same stimuli).
-# 
+#
 # ## Train CNN network
 # + Define network architecture
 # + Split data
 # + Train model
-# 
+#
 
 # ## Import packages & links
 
@@ -39,7 +39,7 @@ sys.path.insert(0, os.path.dirname(os.getcwd()))
 # In[2]:
 
 
-from config import ROOT, PATH_CODE, PATH_DATA, PATH_OUTPUT, PATH_METADATA
+from config import PATH_CODE, PATH_DATA
 PATH_CNTS = os.path.join(PATH_DATA, "17mnd mmn")
 
 
@@ -78,7 +78,7 @@ def read_labels(filename, PATH):
                 # metadata.append(row)
                 metadata.append(''.join(row)) # TODO Delete, hotfix for csv issue
     readFile.close()
-    
+
     return metadata
 
 
@@ -92,7 +92,7 @@ for filename in files_csv:
     y_EEG = read_labels(filename, PATH_DATA_processed)
     labels_unique = list(set(y_EEG))
     label_collection.append(labels_unique)
-    
+
     # Count instances for each unique label
     label_count = []
     for label in labels_unique:
@@ -111,17 +111,17 @@ def transform_label(label,
         label_new = label_dict[label]
     else:
         label_new = None
-    
+
     if main_label_dict is not None:
         if label in main_label_dict:
             main_label = main_label_dict[label]
         else:
             main_label = None
         return label_new, main_label
-    
+
     else:
         return label_new
-    
+
 
 
 # ### Define new labels
@@ -231,17 +231,17 @@ for label in list(set(main_labels)):
     idx = np.where(np.array(main_labels) == label)[0]
     N_label = len(idx)
     print("Found", N_label, "datapoints for label", label)
-    
+
     N_train = int(split_ratio[0] * N_label)
     N_val = int(split_ratio[1] * N_label)
     N_test = N_label - N_train - N_val
     print("Split dataset for label", label, "into train/val/test fractions:", N_train, N_val, N_test)
-    
+
     # Select training, validation, and test IDs:
     trainIDs = np.random.choice(idx, N_train, replace=False)
     valIDs = np.random.choice(list(set(idx) - set(trainIDs)), N_val, replace=False)
     testIDs = list(set(idx) - set(trainIDs) - set(valIDs))
-    
+
     IDs_train.extend(list(trainIDs))
     IDs_val.extend(list(valIDs))
     IDs_test.extend(list(testIDs))
@@ -402,7 +402,7 @@ channel_functions = np.array([
     [0]*n_timepoints
     ])
 
-   
+
 functions_dict = dict()
 for label in label_dict.values():
     functions = np.array([[0] * n_timepoints] * n_channels)
@@ -437,15 +437,15 @@ train_generator = ModifiedDataGenerator(list_IDs = IDs_train,
                                  ignore_labels = ignore_labels,
                                  path_data = PATH_DATA_processed,
                                  filenames = [x[:-4] for x in files_csv],
-                                 data_path = PATH_DATA_processed, 
-                                 to_fit=True, 
+                                 data_path = PATH_DATA_processed,
+                                 to_fit=True,
                                  n_average = 40,
                                  batch_size = 10,
                                  iter_per_epoch = 30,
                                  up_sampling = True,
                                  n_timepoints = 501,
-                                 n_channels=30, 
-#                                 n_classes=1, 
+                                 n_channels=30,
+#                                 n_classes=1,
                                  shuffle=True,
                                  functions_dict=functions_dict)
 
@@ -456,15 +456,15 @@ val_generator = ModifiedDataGenerator(list_IDs = IDs_val,
                                  ignore_labels = ignore_labels,
                                  path_data = PATH_DATA_processed,
                                  filenames = [x[:-4] for x in files_csv],
-                                 data_path = PATH_DATA_processed, 
-                                 to_fit=True, 
+                                 data_path = PATH_DATA_processed,
+                                 to_fit=True,
                                  n_average = 40,
                                  batch_size = 10,
                                  iter_per_epoch = 30,
                                  up_sampling = True,
                                  n_timepoints = 501,
-                                 n_channels=30, 
-#                                 n_classes=1, 
+                                 n_channels=30,
+#                                 n_classes=1,
                                  shuffle=True,
                                  functions_dict=functions_dict)
 
@@ -478,9 +478,9 @@ def generate_fake_data(len_data = 32* 4):
     y_labels = np.tile([0, 1, 2, 3], len_data)
     lb = preprocessing.LabelBinarizer()
     lb.fit(y_labels)
-    
+
     y_set = lb.transform(y_labels)
-    
+
     x_functions = [None] * len(y_labels)
     for idx_item in range(len(y_labels)):
         label = y_labels[idx_item]
@@ -566,17 +566,17 @@ tf.compat.v1.disable_eager_execution() # TODO Delete, substitute gradients for G
 # In[Define model functions]
 
 def start_training(model, output_file, train_generator, val_generator):
-    checkpointer = ModelCheckpoint(filepath = output_file, 
-                                   monitor='val_accuracy', 
-                                   verbose=1, 
+    checkpointer = ModelCheckpoint(filepath = output_file,
+                                   monitor='val_accuracy',
+                                   verbose=1,
                                    save_best_only=True)
     earlystopper = EarlyStopping(monitor='val_accuracy', patience=10, verbose=1)
-    
-    model.fit(x=train_generator, 
+
+    model.fit(x=train_generator,
                        validation_data=val_generator,
                        epochs=50,
                        callbacks = [
-                           checkpointer, 
+                           checkpointer,
                             earlystopper,
                        ]
                       )
@@ -596,7 +596,7 @@ def compile_model(model):
     #model.compile(loss='categorical_crossentropy', optimizer=Adam, metrics=['accuracy'])
     #model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
     #model.compile(loss='categorical_crossentropy', optimizer='adadelta', metrics=['accuracy'])
-    
+
     model.compile(loss='categorical_crossentropy', optimizer='adagrad', metrics=['accuracy'])
     #model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
@@ -682,7 +682,7 @@ def visualize_gradcam(gradcam, network_input = None):
     plt.imshow(np.transpose(np.maximum(gradcam, 0)))
     plt.colorbar(ticks=ticks, orientation='horizontal')
     fig.show()
-    
+
     fig.add_subplot(n_plots, 1, first_plot +2)
     plt.axis('off')
     plt.imshow(np.transpose(gradcam))
@@ -698,7 +698,7 @@ for i in range(4):
     input_image = x_set_val[i]
     # layer_name = "conv2d_2"
     layer_name = "average_pooling2d"
-    
+
     gradcam = grad_cam(input_model, input_image, 0, layer_name)
     visualize_gradcam(gradcam, input_image)
     gradcam = grad_cam(input_model, input_image, 1, layer_name)
@@ -747,7 +747,7 @@ model.add(layers.Conv2D(filters=4, kernel_size=(1, 1))) # Reducing dimensionalit
 model.add(layers.BatchNormalization())
 model.add(layers.LeakyReLU())
 
-model.add(layers.AveragePooling2D(pool_size=(4, 1))) 
+model.add(layers.AveragePooling2D(pool_size=(4, 1)))
 #model.add(layers.GlobalAveragePooling1D(data_format=None))
 
 model.add(layers.Flatten())
