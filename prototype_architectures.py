@@ -31,6 +31,7 @@ real_data = True
 
 if real_data:
     dataset_folder = 'processed_data_17mn'
+    # dataset_folder = 'processed_data_29mnd'
     # dataset_folder = "processed_data_41mnd"
 else:
 
@@ -86,7 +87,8 @@ if real_data:
         '13dys0_risk0', '13dys0_risk1', '13dys1_risk0', '13dys1_risk1']
 
     np.random.seed(1098)
-    split_ratio = (0.7, 0.15, 0.15)
+    # split_ratio = (0.7, 0.15, 0.15)
+    split_ratio = (0.8, 0.2, 0)
     train_generator, val_generator, test_generator = prepare_generators(
         PATH_DATA_processed,
         main_label_dict,
@@ -126,13 +128,9 @@ else:
     data_type = f"{ts_type}-noise{int(not ignore_noise)}"
 
 
-# In[6]:
-
+    # In[Separate data by labels]
 
     label_collection = np.unique(y_data)
-
-
-    # In[Separate data by labels]
 
     label_ids_dict = dict()
     for label in label_collection:
@@ -143,7 +141,7 @@ else:
         label_ids_dict[label] = label_ids_dict[label] + [i]
 
 
-    # In[30]:
+    # In[Split labels]:
 
 
     np.random.seed(1098)
@@ -227,9 +225,9 @@ else:
 
 from datetime import datetime
 
-# test_type = "long"
-test_type = "short"
-# test_type = "feature_test"
+test_type = "long"
+# test_type = "short"
+test_type = "feature_test"
 
 if test_type == "long":
     NR_MODELS = 30
@@ -237,19 +235,26 @@ if test_type == "long":
     EARLY_STOPPING = 10
     SUBSET_SIZE = 600
     MODEL_TYPES = ["CNN", "InceptionTime", "DeepConvLSTM", "ResNet", "FCN", "Encoder"]
+    model_types = "All-FCN-Encoder"
 elif test_type == "short":
     NR_MODELS = 18
     NR_EPOCHS = 20
     EARLY_STOPPING = 5
     SUBSET_SIZE = 300
     MODEL_TYPES = ["CNN", "InceptionTime", "DeepConvLSTM", "ResNet", "FCN", "Encoder"]
+    model_types = "All-FCN-Encoder"
 elif test_type == "feature_test":
-    NR_MODELS = 5
-    NR_EPOCHS = 20
-    EARLY_STOPPING = 5
-    SUBSET_SIZE = 300
-    MODEL_TYPES = ["CNN", "InceptionTime", "DeepConvLSTM", "FCN", "Encoder"]
+    NR_MODELS = 12
+    NR_EPOCHS = 30
+    EARLY_STOPPING = 10
+    SUBSET_SIZE = 600
+    # MODEL_TYPES = ["CNN", "InceptionTime", "Encoder", "Encoder_2D"]
+    # model_types = "cnn-inception-encoders"
     # MODEL_TYPES = ["CNN_2D"]
+    # MODEL_TYPES = ["Encoder", "Encoder_2D"]
+    # model_types = "encoders"
+    MODEL_TYPES = ["Encoder_2D"]
+    model_types = "encoder2d"
 
 train_type = "models{}-epochs{}-e_stop{}-subset{}".format(
     NR_MODELS,
@@ -259,7 +264,7 @@ train_type = "models{}-epochs{}-e_stop{}-subset{}".format(
 
 timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
-outputfile_name = f"{timestamp}-{data_type}-{train_type}-All-FCN-Encoder"
+outputfile_name = f"{timestamp}-{data_type}-{train_type}-{model_types}"
 # outputfile_name = f"{timestamp}-{data_type}-{train_type}-Encoder.json"
 
 metric = 'accuracy'
