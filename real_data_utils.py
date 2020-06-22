@@ -30,6 +30,17 @@ def exchange_channels(data):
         (data.shape[0], data.shape[2] * data.shape[1])).reshape((
             data.shape[0], data.shape[2], data.shape[1]), order = 'F')
 
+def check_exchange_channels(original_data, exchanged_data):
+    """
+    To test channel exchange
+    """
+    for i in range(original_data.shape[0]):
+        for j in range(original_data.shape[1]):
+            for k in range(original_data.shape[2]):
+                if original_data[i][j][k] != exchanged_data[i][k][j]:
+                    return False
+    return True
+
 
 
 def unroll_generator(generator):

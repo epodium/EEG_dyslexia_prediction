@@ -7,7 +7,9 @@ import sys
 import numpy as np
 import pandas as pd
 
-from data_utils import prepare_set, exchange_channels, prepare_generators
+from real_data_utils import prepare_set, exchange_channels, prepare_generators
+import benchmark_data_utils
+
 
 # In[Import local packages]
 cwd = os.getcwd()
@@ -31,7 +33,7 @@ real_data = True
 
 if real_data:
     dataset_folder = 'processed_data_17mn'
-    # dataset_folder = 'processed_data_29mnd'
+    dataset_folder = 'processed_data_29mnd'
     # dataset_folder = "processed_data_41mnd"
 else:
 
@@ -119,65 +121,22 @@ if real_data:
 
 
 else:
-    x_data = np.load(os.path.join(
+    x_data, y_data, data_type = benchmark_data_utils.load_data(
         PATH_DATA_processed,
-        f"x_data_{ts_type}_s{n_samples}_n{int(not ignore_noise)}.npy"))
-    y_data = np.load(os.path.join(
-        PATH_DATA_processed,
-        f"y_data_{ts_type}_s{n_samples}_n{int(not ignore_noise)}.npy"))
-    data_type = f"{ts_type}-noise{int(not ignore_noise)}"
-
+        ts_type,
+        n_samples,
+        ignore_noise)
 
     # In[Separate data by labels]
-
-    label_collection = np.unique(y_data)
-
-    label_ids_dict = dict()
-    for label in label_collection:
-        label_ids_dict[label] = list()
-
-    for i in range(len(y_data)):
-        label = y_data[i]
-        label_ids_dict[label] = label_ids_dict[label] + [i]
+    label_collection, label_ids_dict = benchmark_data_utils.collect_labels(y_data)
 
 
     # In[Split labels]:
 
-
-    np.random.seed(1098)
-    split_ratio = (0.7, 0.15, 0.15)
-
-    ids_train = []
-    ids_val = []
-    ids_test = []
-
-    for label in label_collection:
-        indices = label_ids_dict[label]
-        n_label = len(indices)
-        print("Found", n_label, "datapoints for label", label)
-
-        n_train = int(split_ratio[0] * n_label)
-        n_val = int(split_ratio[1] * n_label)
-        n_test = n_label - n_train - n_val
-        print("Split dataset for label", label, "into train/val/test fractions:",
-              n_train, n_val, n_test)
-
-        # Select training, validation, and test IDs:
-        trainIDs = np.random.choice(indices, n_train, replace=False)
-        valIDs = np.random.choice(
-            list(set(indices) - set(trainIDs)), n_val, replace=False)
-        testIDs = list(set(indices) - set(trainIDs) - set(valIDs))
-
-        ids_train.extend(list(trainIDs))
-        ids_val.extend(list(valIDs))
-        ids_test.extend(list(testIDs))
+    ids_train, ids_val, ids_test = benchmark_data_utils.split_labels(label_collection, label_ids_dict, 1098)
 
 
     # In[Randomize ids]:
-
-    # ids_train = np.array(ids_train)[np.random.permutation(len(ids_train))]
-    # ids_val = np.array(ids_train)[np.random.permutation(len(ids_val))]
-    # ids_test = np.array(ids_train)[np.random.permutation(len(ids_test))]
 
     np.random.shuffle(ids_train)
     np.random.shuffle(ids_val)
@@ -186,28 +145,11 @@ else:
 
     # In[Binarize labels]
 
-    from sklearn import preprocessing
-    lb = preprocessing.LabelBinarizer()
-    lb.fit(label_collection)
-    print(lb.classes_)
-
-    binary_y_data = lb.fit_transform(y_data)
-
-
+    binary_y_data = benchmark_data_utils.binarize_labels(y_data, label_collection)
 
     # In[Split datasets]
 
     # NOTE: mcfly takes data in the shape of length timeseries and channels
-
-
-    def check_reshape(o_data, rs_data):
-        for i in range(o_data.shape[0]):
-            for j in range(o_data.shape[1]):
-                for k in range(o_data.shape[2]):
-                    if o_data[i][j][k] != rs_data[i][k][j]:
-                        return False
-        return True
-
 
     print(x_data.shape)
     x_data = exchange_channels(x_data)
@@ -244,17 +186,17 @@ elif test_type == "short":
     MODEL_TYPES = ["CNN", "InceptionTime", "DeepConvLSTM", "ResNet", "FCN", "Encoder"]
     model_types = "All-FCN-Encoder"
 elif test_type == "feature_test":
-    NR_MODELS = 12
+    NR_MODELS = 24
     NR_EPOCHS = 30
     EARLY_STOPPING = 10
     SUBSET_SIZE = 600
     # MODEL_TYPES = ["CNN", "InceptionTime", "Encoder", "Encoder_2D"]
     # model_types = "cnn-inception-encoders"
     # MODEL_TYPES = ["CNN_2D"]
-    # MODEL_TYPES = ["Encoder", "Encoder_2D"]
-    # model_types = "encoders"
-    MODEL_TYPES = ["Encoder_2D"]
-    model_types = "encoder2d"
+    MODEL_TYPES = ["Encoder", "Encoder_2D"]
+    model_types = "encoders"
+    # MODEL_TYPES = ["Encoder_2D"]
+    # model_types = "encoder2d"
 
 train_type = "models{}-epochs{}-e_stop{}-subset{}".format(
     NR_MODELS,
