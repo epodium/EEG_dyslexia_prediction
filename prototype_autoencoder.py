@@ -12,7 +12,7 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, \
-    UpSampling2D, Reshape, PReLU, Dropout, Lambda, Layer
+    UpSampling2D, Reshape, PReLU, Dropout, Lambda, Layer, Flatten
 from tensorflow_addons.layers import InstanceNormalization
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
@@ -26,18 +26,29 @@ import benchmark_data_utils
 
 from config import PATH_CODE, PATH_DATA, ROOT
 
-model_name = "prototype_autoencoder"
+autoencoder_model_name = "prototype_autoencoder"
+classifier_model_name = "prototype_classifier"
 
-output_file = os.path.join(PATH_CODE, 'models_trained', "autoencoder" , f"{model_name}.hdf5")
+from datetime import datetime
+timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
-# real_data = True
-real_data = False
 
-if real_data:
+do_load = True
+do_load = False
+do_train = True
+# do_train = False
+
+# data_type = "mnist"
+data_type = "benchmark"
+
+if do_load:
+    timestamp = "20200623-120910"
+
+if data_type == "real":
     dataset_folder = 'processed_data_17mn'
     dataset_folder = 'processed_data_29mnd'
     # dataset_folder = "processed_data_41mnd"
-else:
+elif data_type == "benchmark":
 
     # ## Load pre-processed dataset
     # + See notebook for preprocessing: ePODIUM_prepare_data_for_ML.ipynb.ipynb
@@ -54,44 +65,62 @@ else:
 
 
 # In[Acquire data]
-if real_data:
-    pass
-else:
+if data_type == "real":
+    pass # TODO
+elif data_type == "mnist":
     from tensorflow.keras.datasets import mnist
-    (x_set_train, _), (x_set_val, _) = mnist.load_data()
+    (x_set_train, y_set_train), (x_set_val, y_set_val) = mnist.load_data()
     x_set_train = x_set_train.astype('float32') / 255.
     x_set_val = x_set_val.astype('float32') / 255.
 
-    # x_data, y_data, data_type = benchmark_data_utils.load_data(
-    #     PATH_DATA_processed,
-    #     ts_type,
-    #     n_samples,
-    #     ignore_noise)
+    # x_set_train = np.reshape(x_set_train, (len(x_set_train), 28, 28, 1))
+    # x_set_val = np.reshape(x_set_val, (len(x_set_val), 28, 28, 1))
+    # x_set_train = tf.image.resize(x_set_train, (32, 32))
+    # x_set_val = tf.image.resize(x_set_val, (32, 32))
+    # x_set_train = np.reshape(x_set_train, (len(x_set_train), 32, 32))
+    # x_set_val = np.reshape(x_set_val, (len(x_set_val), 32, 32))
 
-    # # Separate data by labels
-    # label_collection, label_ids_dict = benchmark_data_utils.collect_labels(y_data)
+    input_shape = x_set_train.shape
+
+elif data_type == "benchmark":
+    x_data, y_data, data_type = benchmark_data_utils.load_data(
+        PATH_DATA_processed,
+        ts_type,
+        n_samples,
+        ignore_noise)
+
+    # Separate data by labels
+    label_collection, label_ids_dict = benchmark_data_utils.collect_labels(y_data)
+
+    # Transform labels to integer
+    label_dict = dict()
+    for i, label in enumerate(label_collection):
+        label_dict[label] = i
+    y_data_int = np.array([label_dict[label] for label in y_data])
+
+    # Split labels
+    ids_train, ids_val, ids_test = benchmark_data_utils.split_labels(label_collection, label_ids_dict, 1098)
 
 
-    # # Split labels
-    # ids_train, ids_val, ids_test = benchmark_data_utils.split_labels(label_collection, label_ids_dict, 1098)
+    # Randomize ids
+    np.random.shuffle(ids_train)
+    np.random.shuffle(ids_val)
+    np.random.shuffle(ids_test)
 
 
-    # # Randomize ids
-    # np.random.shuffle(ids_train)
-    # np.random.shuffle(ids_val)
-    # np.random.shuffle(ids_test)
+    # Split datasets
+    # NOTE: mcfly takes data in the shape of length timeseries and channels
+
+    print(x_data.shape)
+    x_data = exchange_channels(x_data)
+    print(x_data.shape)
 
 
-    # # Split datasets
-    # # NOTE: mcfly takes data in the shape of length timeseries and channels
-
-    # print(x_data.shape)
-    # x_data = exchange_channels(x_data)
-    # print(x_data.shape)
-
-    # x_set_train = x_data[ids_train]
-    # x_set_val = x_data[ids_val]
-    # # x_set_test = x_data[ids_test]
+    x_set_train = x_data[ids_train]
+    y_set_train = y_data_int[ids_train]
+    x_set_val = x_data[ids_val]
+    y_set_val = y_data_int[ids_val]
+    # x_set_test = x_data[ids_test]
 
     input_shape = x_set_train.shape
 
@@ -105,6 +134,15 @@ weightinit = 'lecun_uniform'  # weight initialization
 regularization_rate = 10 ** -2
 learning_rate = 10 ** -4
 metrics = ["accuracy"]
+batch_size = 250
+
+autoencoder_filename = f"{autoencoder_model_name}-{data_type}-{timestamp}"
+autoencoder_output_file = os.path.join(PATH_CODE,
+                                       'models_trained',
+                                       "autoencoder" ,
+                                       f"{autoencoder_filename}.hdf5")
+
+
 
 
 # In[Define autoencoder]
@@ -117,7 +155,11 @@ reshape = Reshape(target_shape=(dim_length, dim_channels, 1))(inputs)
 previous_block = reshape
 # filters = [(128, 5), (256, 11), (512, 21)]
 # filters = [(16, 5), (32, 11), (64, 21)]
-filters = [(32, (3, 3)), (64, (3, 3)), (128, (3, 3))]
+# filters = [(16, (3, 3)), (8, (3, 3)), (8, (3, 3))]
+# filters = [(16, (3, 3)), (8, (3, 3))]
+# filters = [(32, (5, 1)), (16, (11, 1)), (8, (21, 1))]
+# filters = [(32, (11, 1)), (16, (11, 1)), (8, (11, 1))]
+filters = [(32, (5, 1)), (16, (5, 1))]
 autoencoder_filters = filters + list(reversed(filters))
 shapes = [previous_block.shape]
 
@@ -152,6 +194,7 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
         kernel_size = kernel_size,
         strides = 1,
         padding = 'same',
+        # activation='relu', # From Tutorial
         kernel_regularizer=l2(regularization_rate),
         kernel_initializer=weightinit
         )(previous_block)
@@ -161,12 +204,15 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
         conv_block = PReLU(shared_axes=[1])(conv_block)
         conv_block = Dropout(rate = 0.2)(conv_block)
     if i < len(filters):
-        # conv_block = MaxPooling2D(pool_size = (2, 1))(conv_block)
-        conv_block = MaxPooling2D(pool_size = (2,2))(conv_block)
+        conv_block = MaxPooling2D(pool_size = (2, 1))(conv_block)
+        # conv_block = MaxPooling2D(
+        #     pool_size = (2,2),
+        #     padding= 'same' # From Tutorial
+        #     )(conv_block)
         shapes.append(conv_block.shape)
     else:
-        # conv_block = UpSampling2D(size = (2, 1))(conv_block)
-        conv_block = UpSampling2D(size = (2,2))(conv_block)
+        conv_block = UpSampling2D(size = (2, 1))(conv_block)
+        # conv_block = UpSampling2D(size = (2, 2))(conv_block)
         opposite_shape = shapes[-(i-len(filters)+2)]
         # if i == len(filters):
         if conv_block.shape[1:3] != opposite_shape[1:3]:
@@ -187,7 +233,7 @@ decoded = Conv2D(
     # kernel_size = (5, 1), # TODO :Consider different or variable kernel size
     kernel_size = (3, 3),
     strides = 1,
-    activation = "sigmoid",
+    activation = "sigmoid", # From tutorial
     padding = 'same',
     kernel_regularizer=l2(regularization_rate),
     kernel_initializer=weightinit
@@ -195,39 +241,193 @@ decoded = Conv2D(
 
 decoded = Reshape(target_shape=shapes[0][1:3])(decoded)
 
-encoder = Model(inputs, encoded)
 autoencoder = Model(inputs, decoded)
-
-autoencoder.compile(loss='categorical_crossentropy',
-                    optimizer=Adam(lr=learning_rate),
-                    metrics=metrics)
 
 autoencoder.summary()
 
 
 # In[Train]
 
+patience = 5
+
+if do_load:
+    try:
+        autoencoder.load_weights(autoencoder_output_file)
+        print(f"Loaded weights from {autoencoder_output_file}")
+    except Exception as e:
+        print(repr(e))
+
+autoencoder.compile(loss='categorical_crossentropy',
+                    optimizer=Adam(lr=learning_rate),
+                    metrics=metrics)
+
+# # From Tutorial
+# autoencoder.compile(optimizer='adadelta',
+#                     loss='binary_crossentropy',
+#                     metrics=metrics)
+
+
 earlystopper = EarlyStopping(
     monitor='val_accuracy',
-    patience=5,
+    patience=patience,
     verbose=1
     )
-checkpointer = ModelCheckpoint(
-    filepath = output_file,
+
+if do_train:
+
+    checkpointer = ModelCheckpoint(
+    filepath = autoencoder_output_file,
     monitor='val_accuracy',
     verbose=1,
     save_best_only=True
     )
 
-autoencoder.fit(
-    x_set_train, x_set_train,
-    epochs = 50,
-    batch_size = 250,
-    shuffle = True,
-    validation_data = (x_set_val, x_set_val),
-    callbacks = [
-        earlystopper,
-        checkpointer,
-        TensorBoard(log_dir = "/tmp/autoencoder")
-        ]
-    )
+    autoencoder.fit(
+        x_set_train, x_set_train,
+        epochs = 50,
+        batch_size = batch_size,
+        shuffle = True,
+        validation_data = (x_set_val, x_set_val),
+        callbacks = [
+            earlystopper,
+            checkpointer,
+            TensorBoard(log_dir = f"/tmp/tensorboard/{timestamp}/autoencoder/")
+            ]
+        )
+
+
+# In[Visually inspect results]
+
+import matplotlib.pyplot as plt
+decoded_imgs = autoencoder.predict(x_set_val)
+
+
+# In[Print results]
+n = 10
+plt.figure(figsize=(4, 20))
+for i in range(n):
+    # i += 4*n
+
+    # display original
+    ax = plt.subplot(2, n, i%n+1)
+    plt.imshow(x_set_val[i])
+    # plt.gray()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    # display reconstruction
+    ax = plt.subplot(2, n, i%n + n+1)
+    plt.imshow(decoded_imgs[i])
+    # plt.gray()
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+plt.show()
+
+
+# In[Encode data for classification]
+
+encoder = Model(inputs, encoded)
+encoded_x_train = encoder.predict(x_set_train)
+encoded_x_val = encoder.predict(x_set_val)
+input_shape = encoded_x_train.shape[1:]
+
+from tensorflow.keras.utils import to_categorical
+n_outputs = len(np.unique(y_set_train))
+cat_y_train = to_categorical(y_set_train, n_outputs)
+cat_y_val = to_categorical(y_set_val, n_outputs)
+
+
+# In[Print encoded data]
+n = 10
+plt.figure(figsize=(10, 10))
+for i in range(n):
+    # i += 4*n
+
+    # display encoded data
+    ax = plt.subplot(2, n, i+1)
+    plt.imshow(encoded_x_val[i][:,:,0])
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    # display encoded data
+    ax = plt.subplot(2, n, i+n+1)
+    plt.imshow(encoded_x_val[i][:,:,1])
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+plt.show()
+
+
+# In[Define classifier]
+model = tf.keras.Sequential()
+model.add(Flatten(input_shape = input_shape))
+model.add(Dense(100, activation='relu'))
+model.add(Dropout(0.5))
+model.add(Dense(n_outputs, activation='softmax'))
+
+
+
+# In[Train classifier]
+
+classifier_filename = f"{classifier_model_name}-{data_type}-{timestamp}"
+classifier_output_file = os.path.join(PATH_CODE,
+                                       'models_trained',
+                                       "autoencoder" ,
+                                       f"{classifier_filename}.hdf5")
+
+if do_load:
+    try:
+        model.load_weights(classifier_output_file)
+        print(f"Loaded weights from {classifier_output_file}")
+    except Exception as e:
+        print(repr(e))
+
+model.compile(loss='categorical_crossentropy',
+                    optimizer=Adam(lr=learning_rate),
+                    metrics=metrics)
+
+if do_train:
+    checkpointer = ModelCheckpoint(
+        filepath = classifier_output_file,
+        monitor='val_accuracy',
+        verbose=1,
+        save_best_only=True
+        )
+
+    model.fit(
+            encoded_x_train, cat_y_train,
+            epochs = 50,
+            batch_size = batch_size,
+            shuffle = True,
+            validation_data = (encoded_x_val, cat_y_val),
+            callbacks = [
+                earlystopper,
+                checkpointer,
+                TensorBoard(log_dir = f"/tmp/tensorboard/{timestamp}/classifier")
+                ]
+            )
+
+
+# In[Clustering]
+data_labels = y_set_train
+encoded_data = encoded_x_train
+# data_labels = y_set_val
+# encoded_data = encoded_x_val
+
+
+from sklearn.manifold import TSNE
+data_shape = encoded_data.shape
+tsne_data = encoded_data.reshape(
+    data_shape[0],
+    data_shape[1] * data_shape[2] * data_shape[3])
+data_embedded = TSNE(n_jobs = -1).fit_transform(tsne_data)
+
+
+# In[Plot cluster]
+fig, ax = plt.subplots(figsize=(10, 10))
+scatter= ax.scatter(
+        data_embedded.T[0],
+        data_embedded.T[1],
+        c = data_labels,
+        s = 20,
+        cmap = 'inferno')
+fig.legend(*scatter.legend_elements())
