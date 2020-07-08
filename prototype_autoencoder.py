@@ -33,16 +33,16 @@ from datetime import datetime
 timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
-do_load = True
-do_load = False
-do_train = True
-# do_train = False
+# do_load = True; do_train = False
+do_load = False; do_train = True
+
 
 # data_type = "mnist"
 data_type = "benchmark"
 
 if do_load:
-    timestamp = "20200623-120910"
+    # timestamp = "20200703-110654"
+    timestamp = "20200701-165745"
 
 if data_type == "real":
     dataset_folder = 'processed_data_17mn'
@@ -128,6 +128,7 @@ elif data_type == "benchmark":
 # In[Configure autoencoder]
 
 IMPROVE = False
+# IMPROVE = True
 dim_length = input_shape[1]  # number of samples in a time series
 dim_channels = input_shape[2]  # number of channels
 weightinit = 'lecun_uniform'  # weight initialization
@@ -135,6 +136,8 @@ regularization_rate = 10 ** -2
 learning_rate = 10 ** -4
 metrics = ["accuracy"]
 batch_size = 250
+dense_layer = False
+dense_layer = True
 
 autoencoder_filename = f"{autoencoder_model_name}-{data_type}-{timestamp}"
 autoencoder_output_file = os.path.join(PATH_CODE,
@@ -156,10 +159,16 @@ previous_block = reshape
 # filters = [(128, 5), (256, 11), (512, 21)]
 # filters = [(16, 5), (32, 11), (64, 21)]
 # filters = [(16, (3, 3)), (8, (3, 3)), (8, (3, 3))]
-# filters = [(16, (3, 3)), (8, (3, 3))]
+if data_type == "mnist":
+    filters = [(16, (3, 3)), (8, (3, 3))]
 # filters = [(32, (5, 1)), (16, (11, 1)), (8, (21, 1))]
 # filters = [(32, (11, 1)), (16, (11, 1)), (8, (11, 1))]
-filters = [(32, (5, 1)), (16, (5, 1))]
+if data_type == "benchmark1-noise1":
+    filters = [(32, (5, 1)), (16, (5, 1)), (8, (5, 1)), (4, (5, 1))]
+    if dense_layer:
+        filters += [(2, (5, 1))]
+    else:
+        filters += [(1, (1, 1))]
 autoencoder_filters = filters + list(reversed(filters))
 shapes = [previous_block.shape]
 
@@ -223,9 +232,14 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
             #     )(conv_block)
             print(conv_block.shape)
     if i+1 == len(filters):
+        if dense_layer:
+            shape = conv_block.shape
+            conv_block = Flatten()(conv_block)
+            conv_block = Dense(100)(conv_block)
         encoded = conv_block
-
-
+        if dense_layer:
+            conv_block = Dense(shape[1]*shape[2]*shape[3])(conv_block)
+            conv_block = Reshape(target_shape = shape[1:])(conv_block)
     previous_block = conv_block
 
 decoded = Conv2D(
@@ -248,7 +262,7 @@ autoencoder.summary()
 
 # In[Train]
 
-patience = 5
+patience_autoencoder = 5
 
 if do_load:
     try:
@@ -257,9 +271,12 @@ if do_load:
     except Exception as e:
         print(repr(e))
 
-autoencoder.compile(loss='categorical_crossentropy',
-                    optimizer=Adam(lr=learning_rate),
-                    metrics=metrics)
+autoencoder.compile(
+    loss='categorical_crossentropy',
+    # loss='mse',
+    # loss='binary_crossentropy',
+    optimizer=Adam(lr=learning_rate),
+    metrics=metrics)
 
 # # From Tutorial
 # autoencoder.compile(optimizer='adadelta',
@@ -267,20 +284,22 @@ autoencoder.compile(loss='categorical_crossentropy',
 #                     metrics=metrics)
 
 
-earlystopper = EarlyStopping(
-    monitor='val_accuracy',
-    patience=patience,
-    verbose=1
-    )
+
 
 if do_train:
 
     checkpointer = ModelCheckpoint(
-    filepath = autoencoder_output_file,
-    monitor='val_accuracy',
-    verbose=1,
-    save_best_only=True
-    )
+        filepath = autoencoder_output_file,
+        monitor='val_accuracy',
+        verbose=1,
+        save_best_only=True
+        )
+
+    earlystopper_autoencoder = EarlyStopping(
+        monitor='val_accuracy',
+        patience=patience_autoencoder,
+        verbose=1
+        )
 
     autoencoder.fit(
         x_set_train, x_set_train,
@@ -289,9 +308,9 @@ if do_train:
         shuffle = True,
         validation_data = (x_set_val, x_set_val),
         callbacks = [
-            earlystopper,
+            earlystopper_autoencoder,
             checkpointer,
-            TensorBoard(log_dir = f"/tmp/tensorboard/{timestamp}/autoencoder/")
+            TensorBoard(log_dir = f"/tmp/tensorboard/{timestamp}-{data_type}/autoencoder/")
             ]
         )
 
@@ -321,11 +340,12 @@ for i in range(n):
     # plt.gray()
     ax.get_xaxis().set_visible(False)
     ax.get_yaxis().set_visible(False)
-plt.show()
+plt.draw()
 
 
 # In[Encode data for classification]
 
+print("Encoding data")
 encoder = Model(inputs, encoded)
 encoded_x_train = encoder.predict(x_set_train)
 encoded_x_val = encoder.predict(x_set_val)
@@ -338,33 +358,34 @@ cat_y_val = to_categorical(y_set_val, n_outputs)
 
 
 # In[Print encoded data]
-n = 10
-plt.figure(figsize=(10, 10))
-for i in range(n):
-    # i += 4*n
+if not dense_layer:
+    n = 10
+    plt.figure(figsize=(10, 10))
+    for i in range(n):
+        # i += 4*n
 
-    # display encoded data
-    ax = plt.subplot(2, n, i+1)
-    plt.imshow(encoded_x_val[i][:,:,0])
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
+        # display encoded data
+        ax = plt.subplot(2, n, i+1)
+        plt.imshow(encoded_x_val[i][:,:,0])
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
 
-    # display encoded data
-    ax = plt.subplot(2, n, i+n+1)
-    plt.imshow(encoded_x_val[i][:,:,1])
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
-plt.show()
+        # # display encoded data
+        # ax = plt.subplot(2, n, i+n+1)
+        # plt.imshow(encoded_x_val[i][:,:,1])
+        # ax.get_xaxis().set_visible(False)
+        # ax.get_yaxis().set_visible(False)
+    plt.draw()
 
 
 # In[Define classifier]
 model = tf.keras.Sequential()
 model.add(Flatten(input_shape = input_shape))
-model.add(Dense(100, activation='relu'))
+model.add(Dense(25, activation='relu'))
 model.add(Dropout(0.5))
 model.add(Dense(n_outputs, activation='softmax'))
 
-
+patience_classifier = 50
 
 # In[Train classifier]
 
@@ -393,32 +414,48 @@ if do_train:
         save_best_only=True
         )
 
+    earlystopper_classifier = EarlyStopping(
+        monitor='val_accuracy',
+        patience=patience_classifier,
+        verbose=1
+        )
+
     model.fit(
             encoded_x_train, cat_y_train,
-            epochs = 50,
+            epochs = 1000,
             batch_size = batch_size,
             shuffle = True,
             validation_data = (encoded_x_val, cat_y_val),
             callbacks = [
-                earlystopper,
+                earlystopper_classifier,
                 checkpointer,
-                TensorBoard(log_dir = f"/tmp/tensorboard/{timestamp}/classifier")
+                TensorBoard(log_dir = f"/tmp/tensorboard/{timestamp}-{data_type}/classifier")
                 ]
             )
 
 
 # In[Clustering]
-data_labels = y_set_train
-encoded_data = encoded_x_train
-# data_labels = y_set_val
-# encoded_data = encoded_x_val
+print("Clustering")
+
+cluster_type = "train"
+# cluster_type = "val"
+
+if cluster_type == "train":
+    data_labels = y_set_train
+    encoded_data = encoded_x_train
+elif cluster_type == "val":
+    data_labels = y_set_val
+    encoded_data = encoded_x_val
 
 
 from sklearn.manifold import TSNE
-data_shape = encoded_data.shape
-tsne_data = encoded_data.reshape(
-    data_shape[0],
-    data_shape[1] * data_shape[2] * data_shape[3])
+if dense_layer:
+    tsne_data = encoded_data
+else:
+    data_shape = encoded_data.shape
+    tsne_data = encoded_data.reshape(
+        data_shape[0],
+        data_shape[1] * data_shape[2] * data_shape[3])
 data_embedded = TSNE(n_jobs = -1).fit_transform(tsne_data)
 
 
@@ -429,5 +466,7 @@ scatter= ax.scatter(
         data_embedded.T[1],
         c = data_labels,
         s = 20,
-        cmap = 'inferno')
+        # cmap = 'gist_rainbow')
+        cmap = 'nipy_spectral')
 fig.legend(*scatter.legend_elements())
+plt.show()
