@@ -247,7 +247,7 @@ decoded = Conv2D(
     kernel_size = (5, 1), # TODO :Consider different or variable kernel size
     # kernel_size = (3, 3),
     strides = 1,
-    activation = "sigmoid", # From tutorial
+    # activation = "sigmoid", # From tutorial
     padding = 'same',
     kernel_regularizer=l2(regularization_rate),
     kernel_initializer=weightinit
@@ -272,8 +272,8 @@ if do_load:
         print(repr(e))
 
 autoencoder.compile(
-    loss='categorical_crossentropy',
-    # loss='mse',
+    # loss='categorical_crossentropy',
+    loss='mse',
     # loss='binary_crossentropy',
     optimizer=Adam(lr=learning_rate),
     metrics=metrics)
@@ -290,15 +290,15 @@ if do_train:
 
     checkpointer = ModelCheckpoint(
         filepath = autoencoder_output_file,
-        # monitor='val_accuracy',
-        monitor='val_loss', mode="min",
+        monitor='val_accuracy',
+        # monitor='val_loss', mode="min",
         verbose=1,
         save_best_only=True
         )
 
     earlystopper_autoencoder = EarlyStopping(
-        # monitor='val_accuracy',
-        monitor='val_loss', mode="min",
+        monitor='val_accuracy',
+        # monitor='val_loss', mode="min",
         patience=patience_autoencoder,
         verbose=1
         )
@@ -337,8 +337,8 @@ def plot_comparison(original, reconstruction, ax = None):
         fig, ax = plt.subplots(figsize=(20,(1+0.7 *n_ch*2)))
 
     for i in range(n_ch):
-        ax.plot(original[i, :] - i, color = "black")
-        ax.plot(reconstruction[i, :] - i, color = "red")
+        ax.plot(original[:, i] - i, color = "black")
+        ax.plot(reconstruction[:, i] - i, color = "red")
     ax.set_yticks(-np.arange(n_ch))
     ax.set_yticklabels(['channel ' + str(i) for i in range(n_ch)])
 
@@ -348,7 +348,7 @@ def plot_difference(original, reconstruction, ax = None):
     # if ax == None:
     #     fig, ax = plt.subplots(figsize=(20,(1+0.7 *n_ch*2)))
     for i in range(n_ch):
-        ax.plot(reconstruction[i, :] - original[i, :] - i, color = "blue")
+        ax.plot(reconstruction[:, i] - original[:, i] - i, color = "blue")
     ax.set_yticks(-np.arange(n_ch))
     ax.set_yticklabels(['channel ' + str(i) for i in range(n_ch)])
 
@@ -363,6 +363,10 @@ for i in range(n):
     n_rows = 1
     n_cols = 2
 
+    original = x_set_val[i]
+    reconstruction = decoded_imgs[i]
+    label = label_imgs[i]
+
     ax_comparison = fig_comparison.add_subplot(n_rows, n_cols, i%n+1)
     ax_difference = fig_difference.add_subplot(n_rows, n_cols, i%n+1)
 
@@ -375,10 +379,6 @@ for i in range(n):
     # ax_difference.get_xaxis().set_visible(False)
     # ax_difference.get_yaxis().set_visible(False)
     # ax_difference.set_title(label)
-
-    original = x_set_val[i]
-    reconstruction = decoded_imgs[i]
-    label = label_imgs[i]
 
     plot_comparison(original, reconstruction, ax_comparison)
     plot_difference(original, reconstruction, ax_difference)
