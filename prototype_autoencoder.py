@@ -127,8 +127,8 @@ elif data_type == "benchmark":
 
 # In[Configure autoencoder]
 
-IMPROVE = False
-# IMPROVE = True
+# IMPROVE = False
+# # IMPROVE = True
 dim_length = input_shape[1]  # number of samples in a time series
 dim_channels = input_shape[2]  # number of channels
 weightinit = 'lecun_uniform'  # weight initialization
@@ -137,7 +137,7 @@ learning_rate = 10 ** -4
 metrics = ["accuracy"]
 batch_size = 250
 dense_layer = False
-dense_layer = True
+# dense_layer = True
 
 autoencoder_filename = f"{autoencoder_model_name}-{data_type}-{timestamp}"
 autoencoder_output_file = os.path.join(PATH_CODE,
@@ -168,7 +168,7 @@ if data_type == "benchmark1-noise1":
     if dense_layer:
         filters += [(2, (5, 1))]
     else:
-        filters += [(1, (1, 1))]
+        filters += [(1, (5, 1))]
 autoencoder_filters = filters + list(reversed(filters))
 shapes = [previous_block.shape]
 
@@ -207,11 +207,11 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
         kernel_regularizer=l2(regularization_rate),
         kernel_initializer=weightinit
         )(previous_block)
-    if IMPROVE:
-        conv_block = InstanceNormalization()(conv_block)
-        # TODO: Understand better what the PReLU and shared axes are
-        conv_block = PReLU(shared_axes=[1])(conv_block)
-        conv_block = Dropout(rate = 0.2)(conv_block)
+    # if IMPROVE:
+    #     conv_block = InstanceNormalization()(conv_block)
+    #     # TODO: Understand better what the PReLU and shared axes are
+    #     conv_block = PReLU(shared_axes=[1])(conv_block)
+    #     conv_block = Dropout(rate = 0.2)(conv_block)
     if i < len(filters):
         conv_block = MaxPooling2D(pool_size = (2, 1))(conv_block)
         # conv_block = MaxPooling2D(
@@ -244,8 +244,8 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
 
 decoded = Conv2D(
     filters= 1,
-    # kernel_size = (5, 1), # TODO :Consider different or variable kernel size
-    kernel_size = (3, 3),
+    kernel_size = (5, 1), # TODO :Consider different or variable kernel size
+    # kernel_size = (3, 3),
     strides = 1,
     activation = "sigmoid", # From tutorial
     padding = 'same',
@@ -260,7 +260,7 @@ autoencoder = Model(inputs, decoded)
 autoencoder.summary()
 
 
-# In[Train]
+# In[Train autoencoder]
 
 patience_autoencoder = 5
 
@@ -290,13 +290,15 @@ if do_train:
 
     checkpointer = ModelCheckpoint(
         filepath = autoencoder_output_file,
-        monitor='val_accuracy',
+        # monitor='val_accuracy',
+        monitor='val_loss', mode="min",
         verbose=1,
         save_best_only=True
         )
 
     earlystopper_autoencoder = EarlyStopping(
-        monitor='val_accuracy',
+        # monitor='val_accuracy',
+        monitor='val_loss', mode="min",
         patience=patience_autoencoder,
         verbose=1
         )
@@ -317,29 +319,69 @@ if do_train:
 
 # In[Visually inspect results]
 
-import matplotlib.pyplot as plt
 decoded_imgs = autoencoder.predict(x_set_val)
+label_imgs = y_set_val
+
+# In[Visualize reconstructions]
+import matplotlib.pyplot as plt
+from matplotlib import cm
+
+plt.style.use('ggplot')
+
+def plot_comparison(original, reconstruction, ax = None):
+    n_points, n_ch = original.shape[0:2]
+
+    # bg_cmap = cm.get_cmap('inferno')
+
+    if ax == None:
+        fig, ax = plt.subplots(figsize=(20,(1+0.7 *n_ch*2)))
+
+    for i in range(n_ch):
+        ax.plot(original[i, :] - i, color = "black")
+        ax.plot(reconstruction[i, :] - i, color = "red")
+    ax.set_yticks(-np.arange(n_ch))
+    ax.set_yticklabels(['channel ' + str(i) for i in range(n_ch)])
 
 
-# In[Print results]
-n = 10
-plt.figure(figsize=(4, 20))
+def plot_difference(original, reconstruction, ax = None):
+    n_points, n_ch = original.shape[0:2]
+    # if ax == None:
+    #     fig, ax = plt.subplots(figsize=(20,(1+0.7 *n_ch*2)))
+    for i in range(n_ch):
+        ax.plot(reconstruction[i, :] - original[i, :] - i, color = "blue")
+    ax.set_yticks(-np.arange(n_ch))
+    ax.set_yticklabels(['channel ' + str(i) for i in range(n_ch)])
+
+
+
+n = 2
+figsize = (20, 16)
+fig_comparison = plt.figure(figsize=figsize)
+fig_difference = plt.figure(figsize=figsize)
 for i in range(n):
-    # i += 4*n
+    i += 30*n
+    n_rows = 1
+    n_cols = 2
 
-    # display original
-    ax = plt.subplot(2, n, i%n+1)
-    plt.imshow(x_set_val[i])
-    # plt.gray()
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
+    ax_comparison = fig_comparison.add_subplot(n_rows, n_cols, i%n+1)
+    ax_difference = fig_difference.add_subplot(n_rows, n_cols, i%n+1)
 
-    # display reconstruction
-    ax = plt.subplot(2, n, i%n + n+1)
-    plt.imshow(decoded_imgs[i])
-    # plt.gray()
-    ax.get_xaxis().set_visible(False)
-    ax.get_yaxis().set_visible(False)
+    axes = [ax_comparison, ax_difference]
+    for ax in axes:
+        ax.get_xaxis().set_visible(False)
+        # a.get_yaxis().set_visible(False)
+        ax.set_title(label)
+
+    # ax_difference.get_xaxis().set_visible(False)
+    # ax_difference.get_yaxis().set_visible(False)
+    # ax_difference.set_title(label)
+
+    original = x_set_val[i]
+    reconstruction = decoded_imgs[i]
+    label = label_imgs[i]
+
+    plot_comparison(original, reconstruction, ax_comparison)
+    plot_difference(original, reconstruction, ax_difference)
 plt.draw()
 
 
