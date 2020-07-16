@@ -357,36 +357,37 @@ def plot_difference(original, reconstruction, ax = None):
     ax.set_yticklabels(['channel ' + str(i) for i in range(n_ch)])
 
 
-
-n = 2
+n_figs = 6 # Total number of figures
+n_plots = 2 # Number of plots per figure
 figsize = (20, 16)
-fig_comparison = plt.figure(figsize=figsize)
-fig_difference = plt.figure(figsize=figsize)
-for i in range(n):
-    i += 30*n
-    n_rows = 1
-    n_cols = 2
+for i_fig in range(n_figs):
+    fig_comparison = plt.figure(figsize=figsize)
+    fig_difference = plt.figure(figsize=figsize)
+    for i in range(n_plots):
+        item = i+ 6*n_plots*i_fig
+        n_rows = 1
+        n_cols = 2
 
-    original = x_set_val[i]
-    reconstruction = decoded_imgs[i]
-    label = label_imgs[i]
+        original = x_set_val[item]
+        reconstruction = decoded_imgs[item]
+        label = label_imgs[item]
 
-    ax_comparison = fig_comparison.add_subplot(n_rows, n_cols, i%n+1)
-    ax_difference = fig_difference.add_subplot(n_rows, n_cols, i%n+1)
+        ax_comparison = fig_comparison.add_subplot(n_rows, n_cols, i+1)
+        ax_difference = fig_difference.add_subplot(n_rows, n_cols, i+1)
 
-    axes = [ax_comparison, ax_difference]
-    for ax in axes:
-        ax.get_xaxis().set_visible(False)
-        # a.get_yaxis().set_visible(False)
-        ax.set_title(label)
+        axes = [ax_comparison, ax_difference]
+        for ax in axes:
+            ax.get_xaxis().set_visible(False)
+            # a.get_yaxis().set_visible(False)
+            ax.set_title(label)
 
-    # ax_difference.get_xaxis().set_visible(False)
-    # ax_difference.get_yaxis().set_visible(False)
-    # ax_difference.set_title(label)
+        # ax_difference.get_xaxis().set_visible(False)
+        # ax_difference.get_yaxis().set_visible(False)
+        # ax_difference.set_title(label)
 
-    plot_comparison(original, reconstruction, ax_comparison)
-    plot_difference(original, reconstruction, ax_difference)
-plt.draw()
+        plot_comparison(original, reconstruction, ax_comparison)
+        plot_difference(original, reconstruction, ax_difference)
+    plt.draw()
 
 
 # In[Encode data for classification]
