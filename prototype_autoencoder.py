@@ -165,10 +165,13 @@ if data_type == "mnist":
 # filters = [(32, (11, 1)), (16, (11, 1)), (8, (11, 1))]
 if data_type == "benchmark1-noise1":
     filters = [(32, (5, 1)), (16, (5, 1)), (8, (5, 1)), (4, (5, 1))]
+    # filters = [(32, (5, 1)), (16, (11, 1)), (8, (21, 1)), (4, (41, 1))]
     if dense_layer:
         filters += [(2, (5, 1))]
+        # filters += [(2, (81, 1))]
     else:
         filters += [(1, (5, 1))]
+        # filters += [(1, (81, 1))]
 autoencoder_filters = filters + list(reversed(filters))
 shapes = [previous_block.shape]
 
@@ -203,7 +206,7 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
         kernel_size = kernel_size,
         strides = 1,
         padding = 'same',
-        # activation='relu', # From Tutorial
+        activation='relu', # From Tutorial
         kernel_regularizer=l2(regularization_rate),
         kernel_initializer=weightinit
         )(previous_block)
@@ -244,7 +247,8 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
 
 decoded = Conv2D(
     filters= 1,
-    kernel_size = (5, 1), # TODO :Consider different or variable kernel size
+    # kernel_size = (5, 1), # TODO :Consider different or variable kernel size
+    kernel_size = (1, 1), # TODO :Consider different or variable kernel size
     # kernel_size = (3, 3),
     strides = 1,
     # activation = "sigmoid", # From tutorial
@@ -272,9 +276,9 @@ if do_load:
         print(repr(e))
 
 autoencoder.compile(
-    # loss='categorical_crossentropy',
-    loss='mse',
-    # loss='binary_crossentropy',
+    # loss='mse',
+    loss='binary_crossentropy',
+    # loss = 'huber_loss',
     optimizer=Adam(lr=learning_rate),
     metrics=metrics)
 
@@ -290,15 +294,15 @@ if do_train:
 
     checkpointer = ModelCheckpoint(
         filepath = autoencoder_output_file,
-        monitor='val_accuracy',
-        # monitor='val_loss', mode="min",
+        # monitor='val_accuracy',
+        monitor='val_loss', mode="min",
         verbose=1,
         save_best_only=True
         )
 
     earlystopper_autoencoder = EarlyStopping(
-        monitor='val_accuracy',
-        # monitor='val_loss', mode="min",
+        # monitor='val_accuracy',
+        monitor='val_loss', mode="min",
         patience=patience_autoencoder,
         verbose=1
         )
@@ -348,7 +352,7 @@ def plot_difference(original, reconstruction, ax = None):
     # if ax == None:
     #     fig, ax = plt.subplots(figsize=(20,(1+0.7 *n_ch*2)))
     for i in range(n_ch):
-        ax.plot(reconstruction[:, i] - original[:, i] - i, color = "blue")
+        ax.plot(original[:, i] - reconstruction[:, i] - i, color = "blue")
     ax.set_yticks(-np.arange(n_ch))
     ax.set_yticklabels(['channel ' + str(i) for i in range(n_ch)])
 
