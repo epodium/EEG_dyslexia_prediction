@@ -137,7 +137,7 @@ learning_rate = 10 ** -4
 metrics = ["accuracy"]
 batch_size = 250
 dense_layer = False
-# dense_layer = True
+dense_layer = True
 
 autoencoder_filename = f"{autoencoder_model_name}-{data_type}-{timestamp}"
 autoencoder_output_file = os.path.join(PATH_CODE,
@@ -238,9 +238,11 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
         if dense_layer:
             shape = conv_block.shape
             conv_block = Flatten()(conv_block)
-            conv_block = Dense(100)(conv_block)
+            conv_block = Dense(1000)(conv_block)
+            conv_block = Dense(50)(conv_block)
         encoded = conv_block
         if dense_layer:
+            conv_block = Dense(1000)(conv_block)
             conv_block = Dense(shape[1]*shape[2]*shape[3])(conv_block)
             conv_block = Reshape(target_shape = shape[1:])(conv_block)
     previous_block = conv_block
