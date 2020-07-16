@@ -206,7 +206,7 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
         kernel_size = kernel_size,
         strides = 1,
         padding = 'same',
-        activation='relu', # From Tutorial
+        # activation='relu', # From Tutorial
         kernel_regularizer=l2(regularization_rate),
         kernel_initializer=weightinit
         )(previous_block)
