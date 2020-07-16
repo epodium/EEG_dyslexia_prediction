@@ -170,7 +170,7 @@ if data_type == "benchmark1-noise1":
         filters += [(2, (5, 1))]
         # filters += [(2, (81, 1))]
     else:
-        filters += [(1, (5, 1))]
+        filters += [(2, (5, 1))]
         # filters += [(1, (81, 1))]
 autoencoder_filters = filters + list(reversed(filters))
 shapes = [previous_block.shape]
