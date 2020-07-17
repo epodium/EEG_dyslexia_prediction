@@ -91,13 +91,9 @@ elif data_type == "benchmark":
         ignore_noise)
 
     # Scale data to the range 0-1
-    shape = x_data.shape
-    x_data = x_data.reshape(shape[0], shape[1] * shape[2])
-
-    from sklearn.preprocessing import MinMaxScaler
-    scaler = MinMaxScaler()
-    x_data = scaler.fit_transform(x_data)
-    x_data = x_data.reshape(shape)
+    x_data_max = np.max(x_data)
+    x_data_min = np.min(x_data)
+    x_data = (x_data-x_data_min) / (x_data_max - x_data_min)
 
     # Separate data by labels
     label_collection, label_ids_dict = benchmark_data_utils.collect_labels(y_data)
