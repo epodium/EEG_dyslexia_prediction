@@ -18,6 +18,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+
 from real_data_utils import prepare_set, exchange_channels
 import benchmark_data_utils
 
@@ -89,6 +90,15 @@ elif data_type == "benchmark":
         n_samples,
         ignore_noise)
 
+    # Scale data to the range 0-1
+    shape = x_data.shape
+    x_data = x_data.reshape(shape[0], shape[1] * shape[2])
+
+    from sklearn.preprocessing import MinMaxScaler
+    scaler = MinMaxScaler()
+    x_data = scaler.fit_transform(x_data)
+    x_data = x_data.reshape(shape)
+
     # Separate data by labels
     label_collection, label_ids_dict = benchmark_data_utils.collect_labels(y_data)
 
@@ -114,7 +124,6 @@ elif data_type == "benchmark":
     print(x_data.shape)
     x_data = exchange_channels(x_data)
     print(x_data.shape)
-
 
     x_set_train = x_data[ids_train]
     y_set_train = y_data_int[ids_train]
