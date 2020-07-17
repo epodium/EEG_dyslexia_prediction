@@ -12,7 +12,8 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, \
-    UpSampling2D, Reshape, PReLU, Dropout, Lambda, Layer, Flatten
+    UpSampling2D, Reshape, PReLU, Dropout, Lambda, Layer, Flatten, \
+    Conv2DTranspose
 from tensorflow_addons.layers import InstanceNormalization
 from tensorflow.keras.models import Model
 from tensorflow.keras.regularizers import l2
@@ -206,21 +207,16 @@ class Interpolation(Layer):
         return config
 
 for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
-    conv_block = Conv2D(
-        filters= n_filters,
-        kernel_size = kernel_size,
-        strides = 1,
-        padding = 'same',
-        # activation='relu', # From Tutorial
-        kernel_regularizer=l2(regularization_rate),
-        kernel_initializer=weightinit
-        )(previous_block)
-    # if IMPROVE:
-    #     conv_block = InstanceNormalization()(conv_block)
-    #     # TODO: Understand better what the PReLU and shared axes are
-    #     conv_block = PReLU(shared_axes=[1])(conv_block)
-    #     conv_block = Dropout(rate = 0.2)(conv_block)
     if i < len(filters):
+        conv_block = Conv2D(
+            filters= n_filters,
+            kernel_size = kernel_size,
+            strides = 1,
+            padding = 'same',
+            activation='relu', # From Tutorial
+            kernel_regularizer=l2(regularization_rate),
+            kernel_initializer=weightinit
+            )(previous_block)
         conv_block = MaxPooling2D(pool_size = (2, 1))(conv_block)
         # conv_block = MaxPooling2D(
         #     pool_size = (2,2),
@@ -228,6 +224,15 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
         #     )(conv_block)
         shapes.append(conv_block.shape)
     else:
+        conv_block = Conv2DTranspose(
+            filters= n_filters,
+            kernel_size = kernel_size,
+            strides = 1,
+            padding = 'same',
+            activation='relu', # From Tutorial
+            kernel_regularizer=l2(regularization_rate),
+            kernel_initializer=weightinit
+            )(previous_block)
         conv_block = UpSampling2D(size = (2, 1))(conv_block)
         # conv_block = UpSampling2D(size = (2, 2))(conv_block)
         opposite_shape = shapes[-(i-len(filters)+2)]
@@ -256,7 +261,7 @@ decoded = Conv2D(
     kernel_size = (1, 1), # TODO :Consider different or variable kernel size
     # kernel_size = (3, 3),
     strides = 1,
-    # activation = "sigmoid", # From tutorial
+    activation = "sigmoid", # From tutorial
     padding = 'same',
     kernel_regularizer=l2(regularization_rate),
     kernel_initializer=weightinit
