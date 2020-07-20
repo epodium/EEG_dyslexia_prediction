@@ -226,7 +226,7 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
             # padding = 'same', # From Tutorial
             pool_size = pool_size
             )(conv_block)
-        conv_block = ReLU()(conv_block)
+        # conv_block = ReLU()(conv_block)
         shapes.append(conv_block.shape)
     else:
         conv_block = Conv2DTranspose(
@@ -239,7 +239,7 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
             kernel_initializer=weightinit
             )(previous_block)
         conv_block = UpSampling2D(size = pool_size)(conv_block)
-        conv_block = ReLU()(conv_block)
+        # conv_block = ReLU()(conv_block)
         conv_block = BatchNormalization()(conv_block)
         opposite_shape = shapes[-(i-len(filters)+2)]
         # if i == len(filters):
