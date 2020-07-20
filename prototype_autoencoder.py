@@ -91,10 +91,10 @@ elif data_type == "benchmark":
         n_samples,
         ignore_noise)
 
-    # Scale data to the range 0-1
-    x_data_max = np.max(x_data)
-    x_data_min = np.min(x_data)
-    x_data = (x_data-x_data_min) / (x_data_max - x_data_min)
+    # # Scale data to the range 0-1
+    # x_data_max = np.max(x_data)
+    # x_data_min = np.min(x_data)
+    # x_data = (x_data-x_data_min) / (x_data_max - x_data_min)
 
     # Separate data by labels
     label_collection, label_ids_dict = benchmark_data_utils.collect_labels(y_data)
