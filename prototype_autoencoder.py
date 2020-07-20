@@ -390,13 +390,13 @@ for i_fig in range(n_figs):
         reconstruction = decoded_imgs[item]
         label = label_imgs[item]
 
-        # # Scale data to the range 0-1
-        # o_max = np.max(original)
-        # o_min = np.min(original)
-        # original = (original-o_min) / (o_max - o_min)
-        # r_max = np.max(reconstruction)
-        # r_min = np.min(reconstruction)
-        # reconstruction = (reconstruction-r_min) / (r_max - r_min)
+        # Scale data to the range 0-1
+        o_max = np.max(original)
+        o_min = np.min(original)
+        original = (original-o_min) / (o_max - o_min)
+        r_max = np.max(reconstruction)
+        r_min = np.min(reconstruction)
+        reconstruction = (reconstruction-r_min) / (r_max - r_min)
 
 
         ax_comparison = fig_comparison.add_subplot(n_rows, n_cols, i+1)
