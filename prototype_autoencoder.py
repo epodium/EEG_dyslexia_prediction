@@ -6,26 +6,9 @@ Created on Tue Jun 16 11:58:07 2020
 @author: Breixo Solino
 """
 
-# In[Import packages]
-
-import os
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, \
-    UpSampling2D, Reshape, PReLU, Dropout, Lambda, Layer, Flatten, \
-    Conv2DTranspose, BatchNormalization, ReLU
-from tensorflow_addons.layers import InstanceNormalization
-from tensorflow.keras.models import Model
-from tensorflow.keras.regularizers import l2
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
-
-from real_data_utils import prepare_set, exchange_channels
-import benchmark_data_utils
-
-
 # In[Configure experiment]
 
+import os
 from config import PATH_CODE, PATH_DATA, ROOT
 
 autoencoder_model_name = "prototype_autoencoder"
@@ -68,6 +51,12 @@ elif data_type == "benchmark":
 
 
 # In[Acquire data]
+
+import numpy as np
+
+import benchmark_data_utils
+from real_data_utils import prepare_set, exchange_channels
+
 if data_type == "real":
     pass # TODO
 elif data_type == "mnist":
@@ -156,6 +145,16 @@ autoencoder_output_file = os.path.join(PATH_CODE,
 
 
 # In[Define autoencoder]
+
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense, Reshape, Layer, Conv2D, \
+    Conv2DTranspose, BatchNormalization, MaxPooling2D, UpSampling2D, Flatten
+# from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, \
+#     UpSampling2D, Reshape, PReLU, Dropout, Lambda, Layer, Flatten, \
+#     Conv2DTranspose, BatchNormalization, ReLU
+# from tensorflow_addons.layers import InstanceNormalization
+from tensorflow.keras.models import Model
+from tensorflow.keras.regularizers import l2
 
 tf.keras.backend.clear_session()
 
@@ -283,6 +282,11 @@ autoencoder.summary()
 
 
 # In[Train autoencoder]
+
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+
+
 
 patience_autoencoder = 5
 
@@ -453,6 +457,9 @@ if not dense_layer:
 
 
 # In[Define classifier]
+
+from tensorflow.keras.layers import Dropout
+
 model = tf.keras.Sequential()
 model.add(Flatten(input_shape = input_shape))
 model.add(Dense(25, activation='relu'))
