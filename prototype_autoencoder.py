@@ -8,8 +8,19 @@ Created on Tue Jun 16 11:58:07 2020
 
 # In[Configure experiment]
 
+"""
+This cell contains most of the code that defines the experiment
+- Type of data:
+    - "mnist" For testing purposes
+    - "benchmark": For testing purposes
+    - "real": The actual data. Loading this data is not implemented
+    Each of these data types has different options
+- Filenames
+- Timestamp
+"""
+
 import os
-from config import PATH_CODE, PATH_DATA, ROOT
+from config import PATH_CODE, ROOT #, PATH_DATA
 
 autoencoder_model_name = "prototype_autoencoder"
 classifier_model_name = "prototype_classifier"
@@ -51,6 +62,17 @@ elif data_type == "benchmark":
 
 
 # In[Acquire data]
+
+"""
+Code in this cell loads the data and transforms it for use
+
+Outputs:
+    - "input_shape": Describes the shape taken by the autoencoder inputs
+    - "x_set_train": Input data for training. What is going to be encoded.
+    - "y_set_train": Labels for training
+    - "x_set_val": Input data for validation. What is going to be encoded.
+    - "y_set_val": Labels for validation
+"""
 
 import numpy as np
 
@@ -123,6 +145,10 @@ elif data_type == "benchmark":
 
 # In[Configure autoencoder]
 
+"""
+Data that regulates how the autoencoder is built and outputted
+"""
+
 # IMPROVE = False
 # # IMPROVE = True
 dim_length = input_shape[1]  # number of samples in a time series
@@ -141,27 +167,6 @@ autoencoder_output_file = os.path.join(PATH_CODE,
                                        "autoencoder" ,
                                        f"{autoencoder_filename}.hdf5")
 
-
-
-
-# In[Define autoencoder]
-
-import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, Reshape, Layer, Conv2D, \
-    Conv2DTranspose, BatchNormalization, MaxPooling2D, UpSampling2D, Flatten
-# from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, \
-#     UpSampling2D, Reshape, PReLU, Dropout, Lambda, Layer, Flatten, \
-#     Conv2DTranspose, BatchNormalization, ReLU
-# from tensorflow_addons.layers import InstanceNormalization
-from tensorflow.keras.models import Model
-from tensorflow.keras.regularizers import l2
-
-tf.keras.backend.clear_session()
-
-inputs = Input(shape = (dim_length, dim_channels))
-reshape = Reshape(target_shape=(dim_length, dim_channels, 1))(inputs)
-
-previous_block = reshape
 # filters = [(128, 5), (256, 11), (512, 21)]
 # filters = [(16, 5), (32, 11), (64, 21)]
 # filters = [(16, (3, 3)), (8, (3, 3)), (8, (3, 3))]
@@ -183,6 +188,30 @@ if data_type == "benchmark1-noise1":
         # filters += [(1, (81, 1))]
 pool_size = (2, 1)
 autoencoder_filters = filters + list(reversed(filters))
+
+
+# In[Define autoencoder]
+
+"""
+Create autoencoder based on configuration from previous cell
+"""
+
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense, Reshape, Layer, Conv2D, \
+    Conv2DTranspose, BatchNormalization, MaxPooling2D, UpSampling2D, Flatten
+# from tensorflow.keras.layers import Input, Dense, Conv2D, MaxPooling2D, \
+#     UpSampling2D, Reshape, PReLU, Dropout, Lambda, Layer, Flatten, \
+#     Conv2DTranspose, BatchNormalization, ReLU
+# from tensorflow_addons.layers import InstanceNormalization
+from tensorflow.keras.models import Model
+from tensorflow.keras.regularizers import l2
+
+tf.keras.backend.clear_session()
+
+inputs = Input(shape = (dim_length, dim_channels))
+reshape = Reshape(target_shape=(dim_length, dim_channels, 1))(inputs)
+
+previous_block = reshape
 shapes = [previous_block.shape]
 
 
@@ -355,6 +384,9 @@ from matplotlib import cm
 plt.style.use('ggplot')
 
 def plot_comparison(original, reconstruction, ax = None):
+    """
+    Plot the original input and the reconstruction together in a line plot
+    """
     n_points, n_ch = original.shape[0:2]
 
     # bg_cmap = cm.get_cmap('inferno')
@@ -370,6 +402,10 @@ def plot_comparison(original, reconstruction, ax = None):
 
 
 def plot_difference(original, reconstruction, ax = None):
+    """
+    Plot the difference between the original input and the reconstruction
+    as a line plot
+    """
     n_points, n_ch = original.shape[0:2]
     # if ax == None:
     #     fig, ax = plt.subplots(figsize=(20,(1+0.7 *n_ch*2)))
