@@ -35,8 +35,8 @@ from datetime import datetime
 timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
-do_load = True; do_train = False
-# do_load = False; do_train = True
+# do_load = True; do_train = False
+do_load = False; do_train = True
 
 
 # data_type = "mnist"
@@ -171,16 +171,16 @@ if data_type == "mnist":
 # filters = [(32, (5, 1)), (16, (11, 1)), (8, (21, 1))]
 # filters = [(32, (11, 1)), (16, (11, 1)), (8, (11, 1))]
 if data_type == "benchmark1-noise1":
-    # filters = [(1, (2, 1)), (32, (2, 1)), (16, (3, 1)), (8, (3, 1))]
-    filters = [(32, (5, 1)), (16, (5, 1)), (8, (5, 1)), (4, (5, 1))]
+    filters = [(1, (2, 1)), (32, (2, 1)), (16, (3, 1)), (8, (3, 1))]
+    # filters = [(32, (5, 1)), (16, (5, 1)), (8, (5, 1)), (4, (5, 1))]
     # filters = [(32, (5, 1)), (16, (11, 1)), (8, (21, 1)), (4, (41, 1))]
     if dense_layer:
-        # filters += [(4, (3, 1))]
-        filters += [(2, (5, 1))]
+        filters += [(4, (3, 1))]
+        # filters += [(2, (5, 1))]
         # filters += [(2, (81, 1))]
     else:
-        # filters += [(1, (3, 1))]
-        filters += [(1, (5, 1))]
+        filters += [(1, (3, 1))]
+        # filters += [(1, (5, 1))]
         # filters += [(1, (81, 1))]
 pool_size = (2, 1)
 autoencoder_filters = filters + list(reversed(filters))
@@ -212,17 +212,17 @@ class Interpolation(Layer):
         return config
 
 for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
-    conv_block = Conv2D(
-        filters= n_filters,
-        kernel_size = kernel_size,
-        strides = 1,
-        padding = 'same',
-        # activation='relu', # From Tutorial
-        kernel_regularizer=l2(regularization_rate),
-        kernel_initializer=weightinit
-        )(previous_block)
     if i < len(filters):
-        # conv_block = BatchNormalization()(conv_block)
+        conv_block = Conv2D(
+            filters= n_filters,
+            kernel_size = kernel_size,
+            strides = 1,
+            padding = 'same',
+            # activation='relu', # From Tutorial
+            kernel_regularizer=l2(regularization_rate),
+            kernel_initializer=weightinit
+            )(previous_block)
+        conv_block = BatchNormalization()(conv_block)
         conv_block = MaxPooling2D(
             # padding = 'same', # From Tutorial
             pool_size = pool_size
@@ -230,18 +230,18 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
         # conv_block = ReLU()(conv_block)
         shapes.append(conv_block.shape)
     else:
-        # conv_block = Conv2DTranspose(
-        #     filters= n_filters,
-        #     kernel_size = kernel_size,
-        #     strides = 1,
-        #     padding = 'same',
-        #     # activation='relu', # From Tutorial
-        #     kernel_regularizer=l2(regularization_rate),
-        #     kernel_initializer=weightinit
-        #     )(previous_block)
+        conv_block = Conv2DTranspose(
+            filters= n_filters,
+            kernel_size = kernel_size,
+            strides = 1,
+            padding = 'same',
+            # activation='relu', # From Tutorial
+            kernel_regularizer=l2(regularization_rate),
+            kernel_initializer=weightinit
+            )(previous_block)
         conv_block = UpSampling2D(size = pool_size)(conv_block)
         # conv_block = ReLU()(conv_block)
-        # conv_block = BatchNormalization()(conv_block)
+        conv_block = BatchNormalization()(conv_block)
         opposite_shape = shapes[-(i-len(filters)+2)]
         # if i == len(filters):
         if conv_block.shape[1:3] != opposite_shape[1:3]:
@@ -263,17 +263,17 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
     previous_block = conv_block
 
 decoded = previous_block # First convolution is already at 1 filter
-decoded = Conv2D( # First convolution is already at 1 filter
-    filters= 1,
-    # # kernel_size = (5, 1), # TODO :Consider different or variable kernel size
-    # kernel_size = (1, 1), # TODO :Consider different or variable kernel size
-    kernel_size = (3, 3),
-    strides = 1,
-    activation = "sigmoid", # From tutorial
-    padding = 'same',
-    kernel_regularizer=l2(regularization_rate),
-    kernel_initializer=weightinit
-    )(previous_block)
+# decoded = Conv2D( # First convolution is already at 1 filter
+#     filters= 1,
+#     # # kernel_size = (5, 1), # TODO :Consider different or variable kernel size
+#     kernel_size = (1, 1), # TODO :Consider different or variable kernel size
+#     # kernel_size = (3, 3),
+#     strides = 1,
+#     activation = "sigmoid", # From tutorial
+#     padding = 'same',
+#     kernel_regularizer=l2(regularization_rate),
+#     kernel_initializer=weightinit
+#     )(previous_block)
 
 decoded = Reshape(target_shape=shapes[0][1:3])(decoded)
 
