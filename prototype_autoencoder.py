@@ -501,11 +501,11 @@ from tensorflow.keras.layers import Dropout
 
 model = tf.keras.Sequential()
 model.add(Flatten(input_shape = input_shape))
-model.add(Dense(25, activation='relu'))
+model.add(Dense(50, activation='relu'))
 model.add(Dropout(0.5))
 model.add(Dense(n_outputs, activation='softmax'))
 
-patience_classifier = 50
+patience_classifier = 500
 
 # In[Train classifier]
 
@@ -542,7 +542,7 @@ if do_train:
 
     model.fit(
             encoded_x_train, cat_y_train,
-            epochs = 1000,
+            epochs = 5000,
             batch_size = batch_size,
             shuffle = True,
             validation_data = (encoded_x_val, cat_y_val),
