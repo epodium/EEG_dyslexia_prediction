@@ -159,7 +159,7 @@ learning_rate = 10 ** -4
 metrics = ["accuracy"]
 batch_size = 250
 dense_layer = False
-dense_layer = True
+# dense_layer = True
 
 autoencoder_filename = f"{autoencoder_model_name}-{data_type}-{timestamp}"
 autoencoder_output_file = os.path.join(PATH_CODE,
