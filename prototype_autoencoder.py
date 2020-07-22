@@ -261,7 +261,7 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
         # conv_block = ReLU()(conv_block)
         shapes.append(conv_block.shape)
     else:
-        conv_block = Conv2DTranspose(
+        conv_block = Conv2D(
             filters= n_filters,
             kernel_size = kernel_size,
             strides = 1,
