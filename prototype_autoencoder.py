@@ -253,7 +253,7 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
             kernel_regularizer=l2(regularization_rate),
             kernel_initializer=weightinit
             )(previous_block)
-        conv_block = BatchNormalization()(conv_block)
+        # conv_block = BatchNormalization()(conv_block)
         conv_block = MaxPooling2D(
             # padding = 'same', # From Tutorial
             pool_size = pool_size
@@ -272,7 +272,7 @@ for i, (n_filters, kernel_size) in enumerate(autoencoder_filters):
             )(previous_block)
         conv_block = UpSampling2D(size = pool_size)(conv_block)
         # conv_block = ReLU()(conv_block)
-        conv_block = BatchNormalization()(conv_block)
+        # conv_block = BatchNormalization()(conv_block)
         opposite_shape = shapes[-(i-len(filters)+2)]
         # if i == len(filters):
         if conv_block.shape[1:3] != opposite_shape[1:3]:
