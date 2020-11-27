@@ -110,7 +110,7 @@ class DataGenerator(Sequence):
         return: X and y when fitting. X only when predicting
         """
         # Generate indexes of the batch
-        indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
+        indexes = self.indexes[index * self.batch_size:((index + 1) * self.batch_size + 1)]
 
         # Find list of IDs
         list_IDs_temp = [self.list_IDs[int(k)] for k in indexes]
