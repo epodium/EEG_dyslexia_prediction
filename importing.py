@@ -1,5 +1,9 @@
 """Functions to import and process EEG data from cnt files.
 """
+import numpy as np
+import mne
+
+
 def standardize_EEG(data_array,
                     std_aim = 1,
                     centering = 'per_channel',
